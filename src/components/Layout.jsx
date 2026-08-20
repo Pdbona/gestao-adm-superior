@@ -14,7 +14,7 @@ export const ABAS = [
   { id: 'resultado', label: 'Resultado', icon: LineChart }
 ];
 
-export default function Layout({ aba, setAba, usuario, trocarUsuario, ocultar, children }) {
+export default function Layout({ aba, setAba, usuario, sair, ocultar, children }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const abasVisiveis = ABAS.filter(a => !ocultar?.includes(a.id));
 
@@ -39,12 +39,15 @@ export default function Layout({ aba, setAba, usuario, trocarUsuario, ocultar, c
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={trocarUsuario} style={{
+          <span style={{ color: C.prataClaro, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 12 }}>
+            {usuario}
+          </span>
+          <button onClick={sair} style={{
             display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,.12)',
             border: 'none', borderRadius: 20, padding: '7px 13px', cursor: 'pointer', color: C.branco,
             fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 12
-          }} title="Trocar identificação">
-            <LogOut size={13} /> {usuario}
+          }} title="Sair — volta pro Gestão Superior CD">
+            <LogOut size={13} /> Sair
           </button>
         </div>
       </header>

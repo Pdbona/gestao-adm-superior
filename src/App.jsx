@@ -9,6 +9,11 @@ import ResultadoTab from './components/ResultadoTab';
 import SUP_LOGO from './assets/Logo_Superior.png';
 
 const K_USUARIO = 'gestao_adm_usuario';
+/* Combinado com Pablo em 20/ago/2026: "Sair" leva de volta pro
+   Gestão Superior CD (Operacional), não pra tela de identificação
+   daqui — essa tela só existe pra quem abre o link direto, sem passar
+   pelo Hub. */
+const URL_APP_OPERACIONAL = 'https://Pdbona.github.io/cd-superior/';
 
 /* Sem login próprio, de propósito — o acesso já é validado lá no Hub do
    Operacional (perfil com a permissão "Administrativo"), igual ao App de
@@ -78,13 +83,13 @@ export default function App() {
 
   if (!usuario) return <TelaIdentificacao onEntrar={setUsuario} />;
 
-  const trocarUsuario = () => {
+  const sair = () => {
     localStorage.removeItem(K_USUARIO);
-    setUsuario('');
+    window.location.href = URL_APP_OPERACIONAL;
   };
 
   return (
-    <Layout aba={aba} setAba={setAba} usuario={usuario} trocarUsuario={trocarUsuario} ocultar={ocultar}>
+    <Layout aba={aba} setAba={setAba} usuario={usuario} sair={sair} ocultar={ocultar}>
       {aba === 'importacao' && <ImportacaoTab usuario={usuario} />}
       {aba === 'faturamento' && <FaturamentoTab />}
       {aba === 'despesas' && <DespesasTab />}
