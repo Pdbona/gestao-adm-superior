@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDocs, setDoc, addDoc, writeBatch, query, orderBy
+  collection, doc, getDocs, setDoc, addDoc, writeBatch, query, orderBy, where, deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -99,6 +99,30 @@ export async function salvarFolha(competencia, valores, importadoPor) {
 export async function listarFolha() {
   const snap = await getDocs(query(collection(db, 'folha_pagamento'), orderBy('competencia')));
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+/* ---------- excluir uma importação errada (mês + tipo) ----------
+   Combinado com Pablo em 20/ago/2026: engano de arquivo/mês acontece —
+   busca prévia (buscarParaExcluir) mostra o que seria apagado antes de
+   confirmar (excluirDocs). Não mexe em lotes_importacao — o histórico de
+   "isso foi importado, depois corrigido" fica, é só auditoria. */
+export async function buscarParaExcluir(colecao, filtros) {
+  const clauses = Object.entries(filtros).filter(([, v]) => v != null).map(([k, v]) => where(k, '==', v));
+  const snap = await getDocs(query(collection(db, colecao), ...clauses));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function excluirDocs(colecao, ids) {
+  const CHUNK = 400;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    ids.slice(i, i + CHUNK).forEach(id => batch.delete(doc(db, colecao, id)));
+    await batch.commit();
+  }
+}
+
+export async function excluirFolha(competencia) {
+  await deleteDoc(doc(db, 'folha_pagamento', competencia));
 }
 
 /* ---------- lotes de importação (rastreabilidade) ---------- */

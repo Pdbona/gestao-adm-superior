@@ -3,11 +3,13 @@ import { Landmark, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { C, styles, brl } from '../styles';
 import { salvarFolha, listarFolha } from '../lib/db';
 
-/* Os 10 itens extraídos do PDF "Resumo Geral" do RH — mesma lista já
-   validada manualmente no projeto DRE_Diretoria_Superior. Preenchimento
-   manual por enquanto: o PDF tem layout de relatório impresso (não é
-   dado tabular), então a extração automática fica pra uma v2 — hoje quem
-   lê o PDF e digita aqui é a Pablo (ou eu, no chat, e ele só confere). */
+/* Os 10 itens do PDF "Resumo Geral" do RH — mesma lista já validada
+   manualmente no projeto DRE_Diretoria_Superior. Preenchimento manual:
+   testamos extração automática (pdf.js) em 20/ago/2026 e o PDF do RH não
+   tem camada de texto nenhuma (texto desenhado como vetor, sem texto
+   real por trás) — nenhuma biblioteca de extração de texto lê isso,
+   só OCR resolveria, com risco real de erro em número financeiro. Quem
+   lê o PDF e digita aqui é o Pablo (ou eu, no chat, e ele só confere). */
 const CAMPOS = [
   { id: 'totalLiquidoPagar', label: 'Total Líquido a Pagar', destaque: true },
   { id: 'totalLiquidoPagarFerias', label: 'Total Líquido a Pagar (Férias)', destaque: true },

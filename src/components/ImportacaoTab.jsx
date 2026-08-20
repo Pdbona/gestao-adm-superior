@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Upload } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Upload, Trash2 } from 'lucide-react';
 import { C, styles, brl } from '../styles';
 import { lerPlanilha } from '../lib/xls';
 import { parseFaturamentoLocacao, parseFaturamentoServico, parseDespesas, SUGESTAO_CC_POR_TIPO_DOC } from '../lib/parsers';
-import { salvarFaturamento, salvarDespesas, registrarLote, listarFornecedores, garantirFornecedores, listarCentrosCusto } from '../lib/db';
+import {
+  salvarFaturamento, salvarDespesas, registrarLote, listarFornecedores, garantirFornecedores,
+  listarCentrosCusto, buscarParaExcluir, excluirDocs, listarFolha, excluirFolha
+} from '../lib/db';
 import FileInput from './FileInput';
 import FolhaTab from './FolhaTab';
 
@@ -208,6 +211,123 @@ function BlocoDespesas({ usuario, aoImportar }) {
   );
 }
 
+/* ---------- excluir uma importação errada ----------
+   Combinado com Pablo em 20/ago/2026: seleciona tipo de arquivo + mês,
+   "Buscar" mostra o que seria apagado (nunca apaga direto), só depois
+   de conferir é que aparece o botão vermelho de confirmação. */
+const TIPOS_EXCLUSAO = [
+  { id: 'locacao', label: 'Faturamento — Locação (ND)', colecao: 'lancamentos_faturamento', filtroExtra: { tipo: 'locacao' } },
+  { id: 'servico', label: 'Faturamento — Nota de Serviço', colecao: 'lancamentos_faturamento', filtroExtra: { tipo: 'servico' } },
+  { id: 'despesas', label: 'Despesas', colecao: 'lancamentos_despesa', filtroExtra: {} },
+  { id: 'folha', label: 'Folha de Pagamento (RH)', especial: 'folha' }
+];
+
+function BlocoExcluir({ aoExcluir }) {
+  const [tipoId, setTipoId] = useState(TIPOS_EXCLUSAO[0].id);
+  const [competencia, setCompetencia] = useState(mesAtual());
+  const [buscando, setBuscando] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [resultado, setResultado] = useState(null); // null = não buscou ainda
+  const [erro, setErro] = useState('');
+  const [msg, setMsg] = useState(null);
+
+  const tipo = TIPOS_EXCLUSAO.find(t => t.id === tipoId);
+
+  const buscar = async () => {
+    setBuscando(true); setErro(''); setMsg(null); setResultado(null);
+    try {
+      if (tipo.especial === 'folha') {
+        const historico = await listarFolha();
+        const achada = historico.find(h => h.competencia === competencia);
+        setResultado(achada ? [achada] : []);
+      } else {
+        const docs = await buscarParaExcluir(tipo.colecao, { ...tipo.filtroExtra, competencia });
+        setResultado(docs);
+      }
+    } catch (e) {
+      setErro('Falha ao buscar. Verifique a internet e tente de novo.');
+    } finally {
+      setBuscando(false);
+    }
+  };
+
+  const confirmarExclusao = async () => {
+    if (!resultado || resultado.length === 0) return;
+    setExcluindo(true); setErro('');
+    try {
+      if (tipo.especial === 'folha') {
+        await excluirFolha(competencia);
+      } else {
+        await excluirDocs(tipo.colecao, resultado.map(d => d.id));
+      }
+      setMsg(`Excluído: ${tipo.label} de ${competencia}.`);
+      setResultado(null);
+      aoExcluir();
+    } catch (e) {
+      setErro('Falha ao excluir. Verifique a internet e tente de novo.');
+    } finally {
+      setExcluindo(false);
+    }
+  };
+
+  const total = resultado ? resultado.reduce((s, d) => s + (d.valor || 0), 0) : 0;
+
+  return (
+    <div style={{ ...styles.card, borderColor: C.vermelho, marginTop: 28 }}>
+      <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 14, color: C.vermelho, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Trash2 size={16} /> Excluir uma importação
+      </div>
+      <p style={{ ...styles.helper, marginTop: 4 }}>
+        Errou o arquivo ou o mês? Escolha o tipo e a competência, confira o que seria apagado e só
+        então confirme. Não afeta o cadastro de Fornecedores nem o histórico de importações — só os
+        lançamentos daquele mês/tipo.
+      </p>
+
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
+        <div>
+          <label style={styles.fieldLabel}>Tipo de arquivo importado</label>
+          <select value={tipoId} onChange={e => { setTipoId(e.target.value); setResultado(null); setMsg(null); }}
+            style={{ ...styles.input, minWidth: 240 }}>
+            {TIPOS_EXCLUSAO.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={styles.fieldLabel}>Mês</label>
+          <input type="month" value={competencia} onChange={e => { setCompetencia(e.target.value); setResultado(null); setMsg(null); }}
+            style={{ ...styles.input, maxWidth: 200 }} />
+        </div>
+      </div>
+
+      <button onClick={buscar} disabled={buscando} style={{ ...styles.btnGhost, borderColor: C.vermelho, color: C.vermelho }}>
+        {buscando ? 'Buscando…' : 'Buscar o que seria excluído'}
+      </button>
+
+      {erro && <div style={styles.erro}><AlertTriangle size={15} /> {erro}</div>}
+      {msg && <div style={styles.ok}><CheckCircle2 size={15} /> {msg}</div>}
+
+      {resultado && resultado.length === 0 && (
+        <div style={{ ...styles.helper, marginTop: 12 }}>Nada encontrado pra {tipo.label} em {competencia}.</div>
+      )}
+
+      {resultado && resultado.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 12.5, marginBottom: 12 }}>
+            <span style={{ ...styles.infoChip, color: C.vermelho, borderColor: C.vermelho }}>
+              {resultado.length} {tipo.especial === 'folha' ? 'lançamento de folha' : 'lançamentos'} serão apagados
+            </span>
+            {tipo.especial !== 'folha' && <span style={{ ...styles.infoChip, color: C.vermelho, borderColor: C.vermelho }}>{brl(total)}</span>}
+          </div>
+          <button onClick={confirmarExclusao} disabled={excluindo} style={{
+            ...styles.btnPrimary, background: C.vermelho, boxShadow: 'none', opacity: excluindo ? .7 : 1
+          }}>
+            {excluindo ? 'Excluindo…' : `Confirmar exclusão — ${tipo.label} de ${competencia}`}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ImportacaoTab({ usuario }) {
   const [, forceRefresh] = useState(0);
   const refrescar = () => forceRefresh(n => n + 1);
@@ -238,6 +358,8 @@ export default function ImportacaoTab({ usuario }) {
       <div style={{ marginTop: 28 }}>
         <FolhaTab usuario={usuario} />
       </div>
+
+      <BlocoExcluir aoExcluir={refrescar} />
     </div>
   );
 }
