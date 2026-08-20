@@ -3,6 +3,34 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
+/* ---------- centros de custo ----------
+   Lista semeada automaticamente na primeira vez que alguém abre a aba
+   Fornecedores/Despesas (se a coleção estiver vazia) — evita exigir
+   cadastro manual antes de conseguir usar o app. Continua 100% editável
+   depois (criarCentroCusto). */
+export const CENTROS_CUSTO_PADRAO = [
+  'Aluguel e Ocupação', 'Utilidades (Água/Energia)', 'Impostos e Taxas',
+  'Materiais e Produtos', 'Serviços Gerais', 'Manutenção', 'Folha e Encargos',
+  'Não Classificado'
+];
+
+export async function listarCentrosCusto() {
+  const snap = await getDocs(query(collection(db, 'centros_custo'), orderBy('nome')));
+  if (snap.empty) {
+    const batch = writeBatch(db);
+    CENTROS_CUSTO_PADRAO.forEach(nome => batch.set(doc(collection(db, 'centros_custo')), { nome, criadoEm: Date.now() }));
+    await batch.commit();
+    const snap2 = await getDocs(query(collection(db, 'centros_custo'), orderBy('nome')));
+    return snap2.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function criarCentroCusto(nome) {
+  const ref = await addDoc(collection(db, 'centros_custo'), { nome: nome.trim(), criadoEm: Date.now() });
+  return ref.id;
+}
+
 /* ---------- fornecedores ---------- */
 export async function listarFornecedores() {
   const snap = await getDocs(collection(db, 'fornecedores'));
@@ -10,24 +38,28 @@ export async function listarFornecedores() {
 }
 
 /* Garante que cada fornecedor encontrado numa importação exista no
-   cadastro. Fornecedor novo entra com ehDoCD:null (pendente de validação)
-   — nunca é criado já validado. Não sobrescreve quem já existe. */
+   cadastro. Fornecedor novo entra com ehDoCD:null e centroCustoId:null
+   (pendente de validação) — nunca é criado já validado. Não sobrescreve
+   quem já existe. `fornecedores` é um Map(codigo -> {nome,
+   centroCustoSugeridoId}), a sugestão vem do tipo de documento mais
+   frequente daquele fornecedor no arquivo importado (ver DespesasTab) —
+   é só um palpite pra agilizar a validação, o Pablo confirma ou troca. */
 export async function garantirFornecedores(fornecedores, mapaExistente) {
   const batch = writeBatch(db);
   let novos = 0;
-  for (const [codigo, nome] of fornecedores) {
+  for (const [codigo, { nome, centroCustoSugeridoId }] of fornecedores) {
     if (mapaExistente.has(codigo)) continue;
     const ref = doc(db, 'fornecedores', codigo);
-    batch.set(ref, { codigo, nome, ehDoCD: null, criadoEm: Date.now() });
+    batch.set(ref, { codigo, nome, ehDoCD: null, centroCustoId: null, centroCustoSugeridoId: centroCustoSugeridoId || null, criadoEm: Date.now() });
     novos++;
   }
   if (novos > 0) await batch.commit();
   return novos;
 }
 
-export async function validarFornecedor(codigo, ehDoCD, validadoPor) {
+export async function validarFornecedor(codigo, { ehDoCD, centroCustoId }, validadoPor) {
   await setDoc(doc(db, 'fornecedores', codigo),
-    { ehDoCD, validadoPor, validadoEm: Date.now() }, { merge: true });
+    { ehDoCD, centroCustoId: centroCustoId || null, validadoPor, validadoEm: Date.now() }, { merge: true });
 }
 
 /* ---------- lançamentos ---------- */

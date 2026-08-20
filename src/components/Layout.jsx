@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
-import { Menu, X, LayoutDashboard, Receipt, Wallet, Building2, Landmark, LogOut } from 'lucide-react';
+import { Menu, X, Upload, Receipt, Wallet, Building2, LineChart, LogOut } from 'lucide-react';
 import { C, styles } from '../styles';
 import SUP_LOGO from '../assets/Logo_Superior.png';
 import SBS_LOGO from '../assets/Logo_SBS.png';
 
+/* Mesmos ids usados em SUBITENS_POR_ABA.administrativo, no Operacional —
+   é o que o perfil de lá controla via urlAdministrativo(?ocultar=). */
 export const ABAS = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'importacao', label: 'Importação', icon: Upload },
   { id: 'faturamento', label: 'Faturamento', icon: Receipt },
   { id: 'despesas', label: 'Despesas', icon: Wallet },
   { id: 'fornecedores', label: 'Fornecedores', icon: Building2 },
-  { id: 'folha', label: 'Folha de Pagamento', icon: Landmark }
+  { id: 'resultado', label: 'Resultado', icon: LineChart }
 ];
 
-export default function Layout({ aba, setAba, usuario, trocarUsuario, children }) {
+export default function Layout({ aba, setAba, usuario, trocarUsuario, ocultar, children }) {
   const [menuAberto, setMenuAberto] = useState(false);
+  const abasVisiveis = ABAS.filter(a => !ocultar?.includes(a.id));
 
   return (
     <div style={{ ...styles.page, display: 'flex', flexDirection: 'column' }}>
@@ -58,7 +61,7 @@ export default function Layout({ aba, setAba, usuario, trocarUsuario, children }
               <X size={17} />
             </button>
           </div>
-          {ABAS.map(a => {
+          {abasVisiveis.map(a => {
             const Icone = a.icon;
             const ativo = aba === a.id;
             return (

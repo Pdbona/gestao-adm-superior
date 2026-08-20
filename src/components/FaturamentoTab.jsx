@@ -1,189 +1,134 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Receipt } from 'lucide-react';
-import { C, styles, brl, fmtDataBR } from '../styles';
-import { lerPlanilha } from '../lib/xls';
-import { parseFaturamentoLocacao, parseFaturamentoServico, CATEGORIA_SERVICO_LABEL } from '../lib/parsers';
-import { salvarFaturamento, listarFaturamento, registrarLote } from '../lib/db';
-import FileInput from './FileInput';
+import { Receipt } from 'lucide-react';
+import { C, styles, brl, mesLabel, variacaoPct } from '../styles';
+import { listarFaturamento } from '../lib/db';
+import { Variacao } from './Variacao';
 
-function BlocoImportacao({ titulo, ajuda, tipo, parser, usuario, aoImportar }) {
-  const [arquivo, setArquivo] = useState(null);
-  const [parse, setParse] = useState(null);
-  const [importando, setImportando] = useState(false);
-  const [msg, setMsg] = useState(null);
-  const [erro, setErro] = useState('');
-
-  const onSelecionar = async (file) => {
-    setArquivo(file); setParse(null); setErro(''); setMsg(null);
-    try {
-      const rows = await lerPlanilha(file);
-      const resultado = parser(rows);
-      if (resultado.linhas.length === 0) {
-        setErro('Não encontrei nenhuma linha reconhecível neste arquivo. Confira se é o relatório certo.');
-        return;
-      }
-      setParse(resultado);
-    } catch (e) {
-      setErro('Não consegui ler este arquivo. Confira se é um .xls/.xlsx válido.');
-    }
-  };
-
-  const confirmar = async () => {
-    if (!parse) return;
-    setImportando(true); setErro('');
-    try {
-      const competencias = [...new Set(parse.linhas.map(l => l.competencia).filter(Boolean))];
-      const loteId = await registrarLote({
-        tipo, arquivoNome: arquivo.name, importadoPor: usuario,
-        linhasImportadas: parse.linhas.length, competencias
-      });
-      await salvarFaturamento(parse.linhas, loteId);
-      setMsg(`Importado: ${parse.linhas.length} lançamentos (${brl(parse.linhas.reduce((s, l) => s + l.valor, 0))}).`);
-      setArquivo(null); setParse(null);
-      aoImportar();
-    } catch (e) {
-      setErro('Falha ao salvar no banco. Verifique a internet e tente de novo.');
-    } finally {
-      setImportando(false);
-    }
-  };
-
-  const total = parse ? parse.linhas.reduce((s, l) => s + l.valor, 0) : 0;
-
-  return (
-    <div style={styles.card}>
-      <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 14, color: C.navy }}>{titulo}</div>
-      <p style={{ ...styles.helper, marginTop: 4 }}>{ajuda}</p>
-      <FileInput label={titulo} arquivo={arquivo} onSelecionar={onSelecionar} />
-
-      {erro && <div style={styles.erro}><AlertTriangle size={15} /> {erro}</div>}
-      {msg && <div style={styles.ok}><CheckCircle2 size={15} /> {msg}</div>}
-
-      {parse && (
-        <div style={{ marginTop: 16 }}>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 12.5 }}>
-            <span style={styles.infoChip}>{parse.linhas.length} lançamentos lidos</span>
-            <span style={{ ...styles.infoChip, color: C.verde, borderColor: C.verde }}>{brl(total)}</span>
-          </div>
-          {parse.avisos.length > 0 && (
-            <div style={{ ...styles.erro, background: '#FFF3E0', color: C.laranjaEsc, flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-              {parse.avisos.map((a, i) => <div key={i} style={{ display: 'flex', gap: 8 }}><AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />{a}</div>)}
-            </div>
-          )}
-          <button onClick={confirmar} disabled={importando}
-            style={{ ...styles.btnPrimary, marginTop: 14, opacity: importando ? .7 : 1 }}>
-            {importando ? 'Importando…' : `Confirmar e importar ${parse.linhas.length} lançamentos`}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function FaturamentoTab({ usuario }) {
+export default function FaturamentoTab() {
   const [lancamentos, setLancamentos] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
-  const carregar = async () => {
-    setCarregando(true);
-    setLancamentos(await listarFaturamento());
-    setCarregando(false);
-  };
-  useEffect(() => { carregar(); }, []);
+  useEffect(() => {
+    (async () => {
+      setCarregando(true);
+      setLancamentos(await listarFaturamento());
+      setCarregando(false);
+    })();
+  }, []);
 
-  const totalGeral = useMemo(() => lancamentos.reduce((s, l) => s + (l.valor || 0), 0), [lancamentos]);
-  const totalLocacao = useMemo(() => lancamentos.filter(l => l.tipo === 'locacao').reduce((s, l) => s + (l.valor || 0), 0), [lancamentos]);
   const totalServico = useMemo(() => lancamentos.filter(l => l.tipo === 'servico').reduce((s, l) => s + (l.valor || 0), 0), [lancamentos]);
+  const totalLocacao = useMemo(() => lancamentos.filter(l => l.tipo === 'locacao').reduce((s, l) => s + (l.valor || 0), 0), [lancamentos]);
+  const totalGeral = totalServico + totalLocacao;
 
-  const porCategoria = useMemo(() => {
-    const m = {};
-    lancamentos.filter(l => l.tipo === 'servico').forEach(l => {
-      m[l.categoria] = (m[l.categoria] || 0) + (l.valor || 0);
+  const sintetico = useMemo(() => {
+    const porMes = {};
+    lancamentos.forEach(l => {
+      if (!l.competencia) return;
+      if (!porMes[l.competencia]) porMes[l.competencia] = { competencia: l.competencia, servico: 0, locacao: 0 };
+      porMes[l.competencia][l.tipo === 'servico' ? 'servico' : 'locacao'] += l.valor || 0;
     });
-    return Object.entries(m).sort((a, b) => b[1] - a[1]);
+    return Object.values(porMes)
+      .map(m => ({ ...m, total: m.servico + m.locacao }))
+      .sort((a, b) => a.competencia.localeCompare(b.competencia));
   }, [lancamentos]);
+
+  const mediaAno = sintetico.length ? totalGeral / sintetico.length : 0;
+
+  const analiticoClientes = useMemo(() => {
+    const porCliente = {};
+    lancamentos.forEach(l => {
+      const chave = l.clienteNome || l.clienteCodigo || '—';
+      if (!porCliente[chave]) porCliente[chave] = { nome: chave, total: 0, n: 0 };
+      porCliente[chave].total += l.valor || 0;
+      porCliente[chave].n += 1;
+    });
+    return Object.values(porCliente).sort((a, b) => b.total - a.total);
+  }, [lancamentos]);
+
+  if (carregando) return <div style={styles.empty}>Carregando…</div>;
 
   return (
     <div>
       <div style={styles.secTitle}><Receipt size={19} /> Faturamento</div>
-      <p style={styles.helper}>
-        Duas fontes, importadas separadamente todo mês: Locação (relatório de faturamento por
-        filial, só as linhas de débito/ND) e Serviços (relatório por tipo de serviço). Nada é
-        substituído — cada importação soma ao histórico.
-      </p>
 
       <div style={styles.kpiGrid}>
-        <div style={styles.kpiCard}>
-          <div style={styles.kpiLabel}>Faturamento total</div>
+        <div style={{ ...styles.kpiCard, borderTopColor: C.verde }}>
+          <div style={styles.kpiLabel}>Total Geral</div>
           <div style={{ ...styles.kpiValor, color: C.verde }}>{brl(totalGeral)}</div>
-          <div style={styles.kpiNota}>{lancamentos.length} lançamento(s) no histórico</div>
         </div>
         <div style={styles.kpiCard}>
-          <div style={styles.kpiLabel}>Locação</div>
-          <div style={styles.kpiValor}>{brl(totalLocacao)}</div>
-        </div>
-        <div style={styles.kpiCard}>
-          <div style={styles.kpiLabel}>Serviços</div>
+          <div style={styles.kpiLabel}>Nota de Serviço</div>
           <div style={styles.kpiValor}>{brl(totalServico)}</div>
         </div>
+        <div style={styles.kpiCard}>
+          <div style={styles.kpiLabel}>Locação (ND)</div>
+          <div style={styles.kpiValor}>{brl(totalLocacao)}</div>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 16 }}>
-        <BlocoImportacao
-          titulo="Faturamento — Locação (ND)"
-          ajuda='Relatório "Relação Faturamento por Filial - Detalhado". Só as linhas NFD/Débito entram; as NFS são ignoradas aqui (já vêm no arquivo de Serviços).'
-          tipo="faturamento_locacao" parser={parseFaturamentoLocacao} usuario={usuario} aoImportar={carregar}
-        />
-        <BlocoImportacao
-          titulo="Faturamento — Serviços"
-          ajuda='Relatório por Tipo de Serviço. Categorias unificadas: Armazenagem (1/272/283), Movimentação (284/289), Seguro (285/290), Outros (286/291), Cross Docking (288).'
-          tipo="faturamento_servico" parser={parseFaturamentoServico} usuario={usuario} aoImportar={carregar}
-        />
+      <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, margin: '20px 0 10px' }}>
+        Sintético — por mês
       </div>
-
-      {porCategoria.length > 0 && (
-        <div style={{ marginTop: 24 }}>
-          <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, marginBottom: 10 }}>
-            Serviços por categoria (acumulado)
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {porCategoria.map(([cat, valor]) => (
-              <span key={cat} style={{ ...styles.infoChip, fontSize: 12.5 }}>
-                {CATEGORIA_SERVICO_LABEL[cat] || cat}: <b style={{ marginLeft: 4 }}>{brl(valor)}</b>
-              </span>
-            ))}
-          </div>
+      {sintetico.length === 0 ? (
+        <div style={styles.empty}>Sem faturamento importado ainda.</div>
+      ) : (
+        <div className="scroll-x" style={{ overflowX: 'auto' }}>
+          <table style={styles.table}>
+            <thead><tr>{['Mês', 'Nota de Serviço', 'Locação (ND)', 'Total'].map(h => <th key={h} style={styles.th}>{h}</th>)}</tr></thead>
+            <tbody>
+              {sintetico.map((m, i) => {
+                const anterior = sintetico[i - 1];
+                const pct = anterior ? variacaoPct(m.total, anterior.total) : null;
+                return (
+                  <tr key={m.competencia}>
+                    <td style={styles.td}>{mesLabel(m.competencia)}</td>
+                    <td style={styles.tdMono}>{brl(m.servico)}</td>
+                    <td style={styles.tdMono}>{brl(m.locacao)}</td>
+                    <td style={{ ...styles.tdMono, fontWeight: 700 }}>{brl(m.total)}<Variacao pct={pct} /></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{ background: C.bgLeve }}>
+                <td style={styles.tf}>Total do ano</td>
+                <td style={styles.tfMono}>{brl(totalServico)}</td>
+                <td style={styles.tfMono}>{brl(totalLocacao)}</td>
+                <td style={styles.tfMono}>{brl(totalGeral)}</td>
+              </tr>
+              <tr style={{ background: C.bgLeve }}>
+                <td style={styles.tf}>Média/mês</td>
+                <td style={styles.tfMono}>{brl(sintetico.reduce((s, m) => s + m.servico, 0) / sintetico.length)}</td>
+                <td style={styles.tfMono}>{brl(sintetico.reduce((s, m) => s + m.locacao, 0) / sintetico.length)}</td>
+                <td style={styles.tfMono}>{brl(mediaAno)}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       )}
+      <div style={{ fontSize: 11, color: C.prata, marginTop: 6 }}>Sinalizado ▲/▼ quando o Total do mês varia mais de 10% em relação ao mês anterior.</div>
 
-      <div style={{ marginTop: 24 }}>
-        <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, marginBottom: 10 }}>
-          Lançamentos mais recentes
-        </div>
-        {carregando ? (
-          <div style={styles.empty}>Carregando…</div>
-        ) : lancamentos.length === 0 ? (
-          <div style={styles.empty}>Nenhum faturamento importado ainda.</div>
-        ) : (
-          <div className="scroll-x" style={{ overflowX: 'auto' }}>
-            <table style={styles.table}>
-              <thead><tr>{['Data', 'Tipo', 'Categoria', 'Cliente', 'Documento', 'Valor'].map(h => <th key={h} style={styles.th}>{h}</th>)}</tr></thead>
-              <tbody>
-                {lancamentos.slice().sort((a, b) => (b.data || '').localeCompare(a.data || '')).slice(0, 40).map(l => (
-                  <tr key={l.id}>
-                    <td style={styles.tdMono}>{fmtDataBR(l.data)}</td>
-                    <td style={styles.td}>{l.tipo === 'locacao' ? 'Locação' : 'Serviço'}</td>
-                    <td style={styles.td}>{l.tipo === 'servico' ? (CATEGORIA_SERVICO_LABEL[l.categoria] || l.categoria) : '—'}</td>
-                    <td style={styles.td}>{l.clienteNome}</td>
-                    <td style={styles.tdMono}>{l.documento} {l.numero}</td>
-                    <td style={styles.tdMono}>{brl(l.valor)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, margin: '28px 0 10px' }}>
+        Analítico — por cliente
       </div>
+      {analiticoClientes.length === 0 ? (
+        <div style={styles.empty}>Sem faturamento importado ainda.</div>
+      ) : (
+        <div className="scroll-x" style={{ overflowX: 'auto' }}>
+          <table style={styles.table}>
+            <thead><tr>{['Cliente', 'Lançamentos', 'Total'].map(h => <th key={h} style={styles.th}>{h}</th>)}</tr></thead>
+            <tbody>
+              {analiticoClientes.map(c => (
+                <tr key={c.nome}>
+                  <td style={styles.td}>{c.nome}</td>
+                  <td style={styles.tdMono}>{c.n}</td>
+                  <td style={styles.tdMono}>{brl(c.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

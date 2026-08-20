@@ -47,3 +47,17 @@ export const fmtDataBR = (iso) => {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
 };
+
+export const mesLabel = (competencia) => {
+  if (!competencia) return "—";
+  const [y, m] = competencia.split("-");
+  const nomes = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  return `${nomes[parseInt(m, 10) - 1]}/${y.slice(2)}`;
+};
+
+/* variação percentual mês a mês — usada pra sinalizar alta/queda >10%
+   (combinado com Pablo em 20/ago/2026) nas tabelas de evolução mensal */
+export const variacaoPct = (atual, anterior) => {
+  if (anterior == null || anterior === 0) return null;
+  return ((atual - anterior) / Math.abs(anterior)) * 100;
+};

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { C, styles } from './styles';
-import Layout from './components/Layout';
-import DashboardTab from './components/DashboardTab';
+import Layout, { ABAS } from './components/Layout';
+import ImportacaoTab from './components/ImportacaoTab';
 import FaturamentoTab from './components/FaturamentoTab';
 import DespesasTab from './components/DespesasTab';
 import FornecedoresTab from './components/FornecedoresTab';
-import FolhaTab from './components/FolhaTab';
+import ResultadoTab from './components/ResultadoTab';
 import SUP_LOGO from './assets/Logo_Superior.png';
 
 const K_USUARIO = 'gestao_adm_usuario';
@@ -50,18 +50,28 @@ function usuarioInicial() {
   return localStorage.getItem(K_USUARIO) || '';
 }
 
+/* ?ocultar=faturamento,despesas — mesma convenção do App Gestão Comercial:
+   o perfil no Operacional marca quais abas essa pessoa NÃO vê, e a URL
+   já chega com a lista pronta (combinado com Pablo em 20/ago/2026). */
+function ocultarInicial() {
+  const v = new URLSearchParams(window.location.search).get('ocultar');
+  return v ? v.split(',').filter(Boolean) : [];
+}
+
 export default function App() {
   const [usuario, setUsuario] = useState(usuarioInicial);
-  const [aba, setAba] = useState('dashboard');
+  const [ocultar] = useState(ocultarInicial);
+  const abasVisiveis = ABAS.filter(a => !ocultar.includes(a.id));
+  const [aba, setAba] = useState(() => abasVisiveis[0]?.id || 'importacao');
 
   useEffect(() => {
     if (usuario) localStorage.setItem(K_USUARIO, usuario);
   }, [usuario]);
 
-  // limpa o ?usuario= da barra de endereço depois de ler — não precisa
-  // ficar visível nem sobreviver a um refresh manual da página.
+  // limpa ?usuario=/?ocultar= da barra de endereço depois de ler — não
+  // precisa ficar visível nem sobreviver a um refresh manual da página.
   useEffect(() => {
-    if (window.location.search.includes('usuario=')) {
+    if (window.location.search) {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
@@ -74,12 +84,12 @@ export default function App() {
   };
 
   return (
-    <Layout aba={aba} setAba={setAba} usuario={usuario} trocarUsuario={trocarUsuario}>
-      {aba === 'dashboard' && <DashboardTab />}
-      {aba === 'faturamento' && <FaturamentoTab usuario={usuario} />}
-      {aba === 'despesas' && <DespesasTab usuario={usuario} />}
+    <Layout aba={aba} setAba={setAba} usuario={usuario} trocarUsuario={trocarUsuario} ocultar={ocultar}>
+      {aba === 'importacao' && <ImportacaoTab usuario={usuario} />}
+      {aba === 'faturamento' && <FaturamentoTab />}
+      {aba === 'despesas' && <DespesasTab />}
       {aba === 'fornecedores' && <FornecedoresTab usuario={usuario} />}
-      {aba === 'folha' && <FolhaTab usuario={usuario} />}
+      {aba === 'resultado' && <ResultadoTab />}
     </Layout>
   );
 }

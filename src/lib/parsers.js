@@ -68,8 +68,12 @@ function splitCodigoNome(str, separador) {
    Cada linha de dado, depois de remover células vazias, tem sempre 8
    campos nesta ordem: Filial, Cliente, Documento, Série, Código, Total
    (com "R$"), Data, Tipo Serviço. Linhas de título de seção, subtotal e
-   rodapé têm outra contagem de células e são ignoradas. */
-export function parseFaturamentoServico(rows) {
+   rodapé têm outra contagem de células e são ignoradas.
+   competenciaManual (obrigatório, "yyyy-mm"): combinado com Pablo em
+   20/ago/2026 — quem importa escolhe o mês na tela de Importação, não
+   se usa mais a data que vem dentro do arquivo pra isso (a data do
+   documento continua guardada em `data`, só de referência). */
+export function parseFaturamentoServico(rows, competenciaManual) {
   const linhas = [];
   const avisos = [];
   for (const row of rows) {
@@ -91,7 +95,7 @@ export function parseFaturamentoServico(rows) {
       categoria, categoriaLabel: CATEGORIA_SERVICO_LABEL[categoria],
       filial: c[0], clienteCodigo, clienteNome,
       documento: c[2], serie: c[3], numero: c[4],
-      data: dataISO, competencia: competenciaDe(dataISO),
+      data: dataISO, competencia: competenciaManual,
       valor: valorParaNumero(c[5])
     });
   }
@@ -103,8 +107,9 @@ export function parseFaturamentoServico(rows) {
    Tipo Documento, Série, Código, Data, Total (sem "R$"). Combinado com
    Pablo em 19/ago/2026: só as linhas NFD (débito) viram Locação — as NFS
    deste mesmo arquivo são ignoradas porque já vêm detalhadas por
-   categoria no arquivo de Serviços. */
-export function parseFaturamentoLocacao(rows) {
+   categoria no arquivo de Serviços. competenciaManual: ver nota acima
+   em parseFaturamentoServico. */
+export function parseFaturamentoLocacao(rows, competenciaManual) {
   const linhas = [];
   for (const row of rows) {
     const c = celulasPreenchidas(row);
@@ -119,20 +124,37 @@ export function parseFaturamentoLocacao(rows) {
       tipo: 'locacao',
       filial: c[0], clienteCodigo, clienteNome,
       documento: c[2], tipoDocumento: c[3], serie: c[4], numero: c[5],
-      data: dataISO, competencia: competenciaDe(dataISO),
+      data: dataISO, competencia: competenciaManual,
       valor: valorParaNumero(c[7])
     });
   }
   return { linhas, avisos: [] };
 }
 
+/* Sugestão inicial de Centro de Custo a partir do Tipo de Documento da
+   despesa — usada só como PALPITE quando um fornecedor novo aparece
+   (ver garantirFornecedores em db.js); o usuário sempre pode trocar.
+   Nomes batem com CENTROS_CUSTO_PADRAO (ver db.js) — se não achar
+   correspondência, cai em "Não Classificado". */
+export const SUGESTAO_CC_POR_TIPO_DOC = {
+  ALU: 'Aluguel e Ocupação',
+  AGU: 'Utilidades (Água/Energia)',
+  ENE: 'Utilidades (Água/Energia)',
+  ISS: 'Impostos e Taxas',
+  NFP: 'Materiais e Produtos',
+  NFS: 'Serviços Gerais',
+  BOL: 'Serviços Gerais'
+};
+
 /* ---------- Despesas (documentos_contas_a_pagar_data_vencto...xls) ----------
    Relatório agrupado: "DATA DE VENCIMENTO : dd/mm/aaaa" abre um grupo,
    "TIPO DOCUMENTO: COD-Label" abre um subgrupo dentro dele, depois vem a
    linha de cabeçalho de coluna e as linhas de dado (7 campos: Emissão,
    Documento, Fornecedor, Sit. Parcela, Data Pgto, Sit. Documento, Valor).
-   É preciso ler de cima pra baixo guardando o vencimento/tipo "correntes". */
-export function parseDespesas(rows) {
+   É preciso ler de cima pra baixo guardando o vencimento/tipo "correntes".
+   competenciaManual: ver nota em parseFaturamentoServico — o vencimento
+   real continua guardado em `vencimento`, só de referência. */
+export function parseDespesas(rows, competenciaManual) {
   const linhas = [];
   let vencimentoAtual = null;
   let tipoDocCodigo = null, tipoDocLabel = null;
@@ -157,7 +179,7 @@ export function parseDespesas(rows) {
 
     linhas.push({
       tipoDocumentoCodigo: tipoDocCodigo, tipoDocumentoLabel: tipoDocLabel,
-      vencimento: vencimentoAtual, competencia: competenciaDe(vencimentoAtual),
+      vencimento: vencimentoAtual, competencia: competenciaManual,
       emissao: emissaoISO, documento: c[1],
       fornecedorCodigo, fornecedorNome,
       situacaoParcela: c[3], dataPagamento: dtaPgtoISO, situacaoDocumento: c[5],
