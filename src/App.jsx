@@ -39,13 +39,32 @@ function TelaIdentificacao({ onEntrar }) {
   );
 }
 
+/* Nome já resolvido antes do primeiro render: se veio da URL (o
+   Operacional abre com ?usuario=Fulano, depois que a pessoa já logou por
+   lá), usa direto e pula a TelaIdentificacao — não faz sentido perguntar
+   de novo quem já se identificou. Sem o parâmetro (link aberto direto,
+   sem passar pelo Hub), cai pro nome salvo no navegador ou pergunta. */
+function usuarioInicial() {
+  const daUrl = new URLSearchParams(window.location.search).get('usuario');
+  if (daUrl && daUrl.trim()) return daUrl.trim();
+  return localStorage.getItem(K_USUARIO) || '';
+}
+
 export default function App() {
-  const [usuario, setUsuario] = useState(() => localStorage.getItem(K_USUARIO) || '');
+  const [usuario, setUsuario] = useState(usuarioInicial);
   const [aba, setAba] = useState('dashboard');
 
   useEffect(() => {
     if (usuario) localStorage.setItem(K_USUARIO, usuario);
   }, [usuario]);
+
+  // limpa o ?usuario= da barra de endereço depois de ler — não precisa
+  // ficar visível nem sobreviver a um refresh manual da página.
+  useEffect(() => {
+    if (window.location.search.includes('usuario=')) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   if (!usuario) return <TelaIdentificacao onEntrar={setUsuario} />;
 
