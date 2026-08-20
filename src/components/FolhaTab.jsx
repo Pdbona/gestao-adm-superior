@@ -72,8 +72,8 @@ export default function FolhaTab({ usuario }) {
     <div>
       <div style={styles.secTitle}><Landmark size={19} /> Folha de Pagamento</div>
       <p style={styles.helper}>
-        Um lançamento por mês, com os 10 itens do "Resumo Geral" do RH. Pro cálculo de Despesa Total
-        no Dashboard, conta só o <b>Total Líquido a Pagar</b> (+ a parcela de Férias, quando houver) —
+        Um lançamento por mês, com os 10 itens do "Resumo Geral" do RH. Pro cálculo de RH Total na
+        aba Resultado, conta só o <b>Total Líquido a Pagar</b> (+ a parcela de Férias, quando houver) —
         os demais itens ficam guardados como referência.
       </p>
 

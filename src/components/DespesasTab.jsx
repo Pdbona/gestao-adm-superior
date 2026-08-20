@@ -22,7 +22,7 @@ export default function DespesasTab() {
 
   const fornecedoresMapa = useMemo(() => new Map(fornecedores.map(f => [f.codigo, f])), [fornecedores]);
   /* só entram despesas de fornecedor validado "é do CD" — é a mesma regra
-     usada no Dashboard/Resultado */
+     usada na aba Resultado */
   const validadas = useMemo(() => despesas.filter(d => fornecedoresMapa.get(d.fornecedorCodigo)?.ehDoCD === true), [despesas, fornecedoresMapa]);
 
   /* ---------- Sintético: mês (linha, crescente) x Centro de Custo (coluna) ---------- */
