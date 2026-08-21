@@ -65,7 +65,7 @@ export default function ResultadoTab() {
     const linhas = dados.faturamento.filter(l => l.competencia === competencia);
     setDetalhe({
       titulo: `Faturamento — ${mesLabel(competencia)}`, subtitulo: `Por cliente · ${linhas.length} lançamento(s)`,
-      colunas: COLUNAS_FATURAMENTO_POR_CLIENTE, linhas: agruparFaturamentoPorCliente(linhas)
+      colunas: COLUNAS_FATURAMENTO_POR_CLIENTE, linhas: agruparFaturamentoPorCliente(linhas, competencia)
     });
   };
 
@@ -74,7 +74,7 @@ export default function ResultadoTab() {
     const linhas = dados.despesas.filter(d => d.competencia === competencia && fornecedoresMapa.get(d.fornecedorCodigo)?.ehDoCD === true);
     setDetalhe({
       titulo: `Despesa — ${mesLabel(competencia)}`, subtitulo: `Por Centro de Custo · ${linhas.length} lançamento(s) validado(s)`,
-      colunas: COLUNAS_DESPESA_POR_CC, linhas: agruparDespesaPorCC(linhas, fornecedoresMapa, dados.centrosCusto)
+      colunas: COLUNAS_DESPESA_POR_CC, linhas: agruparDespesaPorCC(linhas, fornecedoresMapa, dados.centrosCusto, competencia)
     });
   };
 

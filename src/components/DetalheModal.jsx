@@ -1,13 +1,15 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
-import { C, styles, brl, fmtDataBR } from '../styles';
+import { C, styles, brl, fmtDataBR, mesLabel } from '../styles';
 
 /* Modal genérico de "explodir detalhes" — abre ao clicar num valor
    agregado (Sintético/Analítico de Despesas e Faturamento, células da
    aba Resultado) e lista os lançamentos individuais por trás daquele
    número. Combinado com Pablo em 21/ago/2026. `linhas` é um array de
    objetos quaisquer; `colunas` descreve como render (key, label,
-   formato: 'data'|'moeda'|undefined). */
+   formato: 'data'|'moeda'|'mes'|undefined). Mês sempre como primeira
+   coluna (combinado com Pablo em 21/ago/2026: mesmo padrão de todas as
+   outras tabelas do app, que já têm Mês em cabeçalho). */
 export default function DetalheModal({ detalhe, onFechar }) {
   useEffect(() => {
     if (!detalhe) return;
@@ -24,6 +26,7 @@ export default function DetalheModal({ detalhe, onFechar }) {
     if (valor == null || valor === '') return '—';
     if (col.formato === 'moeda') return brl(valor);
     if (col.formato === 'data') return fmtDataBR(valor);
+    if (col.formato === 'mes') return mesLabel(valor);
     return valor;
   };
 

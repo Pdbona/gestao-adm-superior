@@ -9,6 +9,7 @@ import FolhaMatrizTab from './FolhaMatrizTab';
 import { agruparDespesaPorCC, COLUNAS_DESPESA_POR_CC } from '../lib/agregacoes';
 
 const COLUNAS_DETALHE = [
+  { key: 'competencia', label: 'Mês', formato: 'mes' },
   { key: 'emissao', label: 'Emissão', formato: 'data' },
   { key: 'documento', label: 'Documento' },
   { key: 'fornecedorNome', label: 'Fornecedor' },
@@ -101,7 +102,7 @@ export default function DespesasTab() {
       setDetalhe({
         titulo: `Todas as despesas — ${mesLabel(competencia)}`,
         subtitulo: `Por Centro de Custo · ${linhas.length} lançamento(s) validado(s)`,
-        colunas: COLUNAS_DESPESA_POR_CC, linhas: agruparDespesaPorCC(linhas, fornecedoresMapa, centrosCusto)
+        colunas: COLUNAS_DESPESA_POR_CC, linhas: agruparDespesaPorCC(linhas, fornecedoresMapa, centrosCusto, competencia)
       });
       return;
     }
