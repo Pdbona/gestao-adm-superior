@@ -188,3 +188,58 @@ export function parseDespesas(rows, competenciaManual) {
   }
   return { linhas, avisos: [] };
 }
+
+/* ---------- Folha de Pagamento (planilha Folha_RH_AAAA-MM.xlsx) ----------
+   Não é um relatório do ERP como os outros — é o formato próprio que o
+   Claude gera a partir do PDF "Resumo Geral" do RH (o PDF em si não tem
+   texto extraível, ver FolhaTab.jsx). Linha 1 = cabeçalho com o nome de
+   cada campo, linha 2 = os valores; casa pelo texto do cabeçalho, não
+   pela posição da coluna, pra não quebrar se alguém reordenar. A
+   competência continua escolhida manualmente na tela (mesma regra dos
+   outros imports — combinado com Pablo em 20/ago/2026); a coluna
+   "Competência" da planilha é só conferência, vira aviso se divergir.
+   Combinado com Pablo em 21/ago/2026. */
+export const CAMPOS_FOLHA = [
+  { header: 'Total Líquido a Pagar', id: 'totalLiquidoPagar' },
+  { header: 'Total Líquido a Pagar (Férias)', id: 'totalLiquidoPagarFerias' },
+  { header: 'Total Líquido (GPS)', id: 'gps' },
+  { header: 'Total FGTS Apurado (Recibos)', id: 'fgtsApurado' },
+  { header: 'Total FGTS Recolhido s/CS', id: 'fgtsRecolhido' },
+  { header: 'Total de Empréstimo', id: 'emprestimo' },
+  { header: 'IRRF Folha', id: 'irrfFolha' },
+  { header: 'Hora Extra 50% (401)', id: 'horaExtra50' },
+  { header: 'Hora Extra 100% (402)', id: 'horaExtra100' },
+  { header: 'DSR s/ Horas Extras (420)', id: 'dsrHorasExtras' },
+  { header: 'Custo de Demissão (líq.)', id: 'custoDemissao' }
+];
+
+export function parseFolha(rows, competenciaManual) {
+  const avisos = [];
+  const cabecalho = (rows[0] || []).map(c => String(c ?? '').trim().toLowerCase());
+  const linhaValores = rows[1] || [];
+
+  if (cabecalho.length === 0 || linhaValores.length === 0) {
+    return { valores: null, avisos: ['Não encontrei cabeçalho e linha de valores nas duas primeiras linhas da planilha.'] };
+  }
+
+  const valores = {};
+  for (const campo of CAMPOS_FOLHA) {
+    const idx = cabecalho.indexOf(campo.header.toLowerCase());
+    if (idx < 0) {
+      valores[campo.id] = 0;
+      avisos.push(`Coluna "${campo.header}" não encontrada — lancei 0,00, confira antes de salvar.`);
+    } else {
+      valores[campo.id] = valorParaNumero(linhaValores[idx]);
+    }
+  }
+
+  const idxCompetencia = cabecalho.indexOf('competência');
+  if (idxCompetencia >= 0) {
+    const competenciaPlanilha = String(linhaValores[idxCompetencia] || '').trim();
+    if (competenciaPlanilha && competenciaPlanilha !== competenciaManual) {
+      avisos.push(`A planilha indica competência ${competenciaPlanilha}, mas o mês escolhido acima é ${competenciaManual} — confira antes de salvar.`);
+    }
+  }
+
+  return { valores, avisos };
+}
