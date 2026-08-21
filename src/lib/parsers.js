@@ -192,7 +192,7 @@ export function parseDespesas(rows, competenciaManual) {
 /* ---------- Folha de Pagamento (planilha Folha_RH_AAAA-MM.xlsx) ----------
    Não é um relatório do ERP como os outros — é o formato próprio que o
    Claude gera a partir do PDF "Resumo Geral" do RH (o PDF em si não tem
-   texto extraível, ver FolhaTab.jsx). Linha 1 = cabeçalho com o nome de
+   texto extraível, ver BlocoFolha em ImportacaoTab.jsx). Linha 1 = cabeçalho com o nome de
    cada campo, linha 2 = os valores; casa pelo texto do cabeçalho, não
    pela posição da coluna, pra não quebrar se alguém reordenar. A
    competência continua escolhida manualmente na tela (mesma regra dos

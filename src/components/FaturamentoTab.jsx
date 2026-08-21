@@ -5,20 +5,10 @@ import { listarFaturamento } from '../lib/db';
 import { Variacao } from './Variacao';
 import ErroCarregamento from './ErroCarregamento';
 import DetalheModal from './DetalheModal';
-
-const COLUNAS_DETALHE = [
-  { key: 'data', label: 'Data', formato: 'data' },
-  { key: 'documento', label: 'Documento' },
-  { key: 'clienteNome', label: 'Cliente' },
-  { key: 'categoriaOuTipo', label: 'Categoria' },
-  { key: 'valor', label: 'Valor', formato: 'moeda' }
-];
+import { agruparFaturamentoPorCliente, COLUNAS_FATURAMENTO_POR_CLIENTE } from '../lib/agregacoes';
 
 const chaveCliente = (l) => l.clienteNome || l.clienteCodigo || '—';
 const chaveItem = (l) => l.categoriaLabel || (l.tipo === 'locacao' ? 'Locação (ND)' : 'Outros');
-const comCategoria = (linhas) => linhas.map(l => ({
-  ...l, categoriaOuTipo: l.categoriaLabel || (l.tipo === 'locacao' ? 'Locação (ND)' : l.tipo)
-}));
 
 /* mês (linha, crescente) x uma dimensão qualquer (coluna, ordenada por
    total decrescente) — mesmo padrão do Sintético de Despesas, reusado
@@ -130,19 +120,23 @@ export default function FaturamentoTab() {
   const matrizClientes = useMemo(() => matrizMensal(lancamentos, chaveCliente), [lancamentos]);
   const matrizItens = useMemo(() => matrizMensal(lancamentos, chaveItem), [lancamentos]);
 
+  /* sempre resume por cliente (Nota de Serviço x Locação, ordem decrescente
+     de total) — lançamento cru individual é ruído demais aqui, combinado
+     com Pablo em 21/ago/2026. */
   const abrirDetalheSintetico = (competencia, tipo) => {
     const linhas = lancamentos.filter(l => l.competencia === competencia && (!tipo || l.tipo === tipo));
     setDetalhe({
       titulo: `${tipo === 'servico' ? 'Nota de Serviço' : tipo === 'locacao' ? 'Locação (ND)' : 'Faturamento'} — ${mesLabel(competencia)}`,
-      subtitulo: `${linhas.length} lançamento(s)`, colunas: COLUNAS_DETALHE, linhas: comCategoria(linhas)
+      subtitulo: `Por cliente · ${linhas.length} lançamento(s)`,
+      colunas: COLUNAS_FATURAMENTO_POR_CLIENTE, linhas: agruparFaturamentoPorCliente(linhas)
     });
   };
 
-  const abrirDetalheMatriz = (competencia, chave, chaveDe, ocultarCol) => {
+  const abrirDetalheMatriz = (competencia, chave, chaveDe) => {
     const linhas = lancamentos.filter(l => l.competencia === competencia && chaveDe(l) === chave);
     setDetalhe({
-      titulo: `${chave} — ${mesLabel(competencia)}`, subtitulo: `${linhas.length} lançamento(s)`,
-      colunas: COLUNAS_DETALHE.filter(c => c.key !== ocultarCol), linhas: comCategoria(linhas)
+      titulo: `${chave} — ${mesLabel(competencia)}`, subtitulo: `Por cliente · ${linhas.length} lançamento(s)`,
+      colunas: COLUNAS_FATURAMENTO_POR_CLIENTE, linhas: agruparFaturamentoPorCliente(linhas)
     });
   };
 
@@ -216,7 +210,7 @@ export default function FaturamentoTab() {
       {matrizClientes.colunas.length === 0 ? (
         <div style={styles.empty}>Sem faturamento importado ainda.</div>
       ) : (
-        <TabelaMatriz matriz={matrizClientes} onClique={(competencia, cliente) => abrirDetalheMatriz(competencia, cliente, chaveCliente, 'clienteNome')} />
+        <TabelaMatriz matriz={matrizClientes} onClique={(competencia, cliente) => abrirDetalheMatriz(competencia, cliente, chaveCliente)} />
       )}
 
       <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, margin: '28px 0 10px' }}>
@@ -225,7 +219,7 @@ export default function FaturamentoTab() {
       {matrizItens.colunas.length === 0 ? (
         <div style={styles.empty}>Sem faturamento importado ainda.</div>
       ) : (
-        <TabelaMatriz matriz={matrizItens} onClique={(competencia, item) => abrirDetalheMatriz(competencia, item, chaveItem, 'categoriaOuTipo')} />
+        <TabelaMatriz matriz={matrizItens} onClique={(competencia, item) => abrirDetalheMatriz(competencia, item, chaveItem)} />
       )}
 
       <DetalheModal detalhe={detalhe} onFechar={() => setDetalhe(null)} />

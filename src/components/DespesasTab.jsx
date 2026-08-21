@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Wallet } from 'lucide-react';
+import { Wallet, Landmark } from 'lucide-react';
 import { C, styles, brl, mesLabel, variacaoPct } from '../styles';
 import { listarDespesas, listarFornecedores, listarCentrosCusto } from '../lib/db';
 import { Variacao } from './Variacao';
 import ErroCarregamento from './ErroCarregamento';
 import DetalheModal from './DetalheModal';
+import FolhaMatrizTab from './FolhaMatrizTab';
+import { agruparDespesaPorCC, COLUNAS_DESPESA_POR_CC } from '../lib/agregacoes';
 
 const COLUNAS_DETALHE = [
   { key: 'emissao', label: 'Emissão', formato: 'data' },
@@ -12,6 +14,11 @@ const COLUNAS_DETALHE = [
   { key: 'fornecedorNome', label: 'Fornecedor' },
   { key: 'tipoDocumentoLabel', label: 'Tipo' },
   { key: 'valor', label: 'Valor', formato: 'moeda' }
+];
+
+const SUBITENS = [
+  { id: 'gerais', label: 'Despesas Gerais', icon: Wallet },
+  { id: 'folha', label: 'Folha de Pagto', icon: Landmark }
 ];
 
 export default function DespesasTab() {
@@ -22,6 +29,7 @@ export default function DespesasTab() {
   const [erro, setErro] = useState(false);
   const [ccSelecionado, setCcSelecionado] = useState('');
   const [detalhe, setDetalhe] = useState(null);
+  const [subitem, setSubitem] = useState('gerais');
 
   const carregar = async () => {
     setCarregando(true); setErro(false);
@@ -83,11 +91,22 @@ export default function DespesasTab() {
   const ccIdDe = (d) => fornecedoresMapa.get(d.fornecedorCodigo)?.centroCustoId || 'sem_cc';
   const nomeCC = (id) => id === 'sem_cc' ? 'Não Classificado' : (centrosCusto.find(c => c.id === id)?.nome || '—');
 
-  /* célula do Sintético: mês + Centro de Custo (ou mês inteiro, se ccId omitido) */
+  /* célula do Sintético: mês + Centro de Custo (lista crua, já vem bem
+     recortada) — ou mês inteiro sem ccId (Total do mês, mistura todos os
+     CCs), aí resume por Centro de Custo em vez de listar cada lançamento
+     (combinado com Pablo em 21/ago/2026). */
   const abrirDetalheSintetico = (competencia, ccId) => {
     const linhas = validadas.filter(d => d.competencia === competencia && (!ccId || ccIdDe(d) === ccId));
+    if (!ccId) {
+      setDetalhe({
+        titulo: `Todas as despesas — ${mesLabel(competencia)}`,
+        subtitulo: `Por Centro de Custo · ${linhas.length} lançamento(s) validado(s)`,
+        colunas: COLUNAS_DESPESA_POR_CC, linhas: agruparDespesaPorCC(linhas, fornecedoresMapa, centrosCusto)
+      });
+      return;
+    }
     setDetalhe({
-      titulo: ccId ? `${nomeCC(ccId)} — ${mesLabel(competencia)}` : `Todas as despesas — ${mesLabel(competencia)}`,
+      titulo: `${nomeCC(ccId)} — ${mesLabel(competencia)}`,
       subtitulo: `${linhas.length} lançamento(s) validado(s)`,
       colunas: COLUNAS_DETALHE, linhas
     });
@@ -102,13 +121,34 @@ export default function DespesasTab() {
     });
   };
 
-  if (erro) return <ErroCarregamento onTentarDeNovo={carregar} />;
-  if (carregando) return <div style={styles.empty}>Carregando…</div>;
-
   return (
     <div>
       <div style={styles.secTitle}><Wallet size={19} /> Despesas</div>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: `1px solid ${C.prataClaro}`, paddingBottom: 14 }}>
+        {SUBITENS.map(s => {
+          const Icone = s.icon;
+          const ativo = subitem === s.id;
+          return (
+            <button key={s.id} onClick={() => setSubitem(s.id)} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', borderRadius: 20,
+              padding: '8px 16px', cursor: 'pointer', fontFamily: "'Montserrat',sans-serif", fontWeight: 700,
+              fontSize: 12.5, background: ativo ? C.navy : C.bgLeve, color: ativo ? C.branco : C.navy2
+            }}>
+              <Icone size={14} /> {s.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {subitem === 'folha' ? (
+        <FolhaMatrizTab />
+      ) : erro ? (
+        <ErroCarregamento onTentarDeNovo={carregar} />
+      ) : carregando ? (
+        <div style={styles.empty}>Carregando…</div>
+      ) : (
+      <>
       <div style={styles.kpiGrid}>
         <div style={{ ...styles.kpiCard, borderTopColor: C.vermelho }}>
           <div style={styles.kpiLabel}>Total (todos os meses)</div>
@@ -202,6 +242,8 @@ export default function DespesasTab() {
             </table>
           </div>
         </>
+      )}
+      </>
       )}
       <DetalheModal detalhe={detalhe} onFechar={() => setDetalhe(null)} />
     </div>
