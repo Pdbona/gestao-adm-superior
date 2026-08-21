@@ -1,24 +1,37 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Wallet } from 'lucide-react';
+import { Wallet, Tags } from 'lucide-react';
 import { C, styles, brl, mesLabel, variacaoPct } from '../styles';
 import { listarDespesas, listarFornecedores, listarCentrosCusto } from '../lib/db';
 import { Variacao } from './Variacao';
+import ErroCarregamento from './ErroCarregamento';
+import CentrosCustoManager from './CentrosCustoManager';
+
+const SUBITENS = [
+  { id: 'lancamentos', label: 'Lançamentos', icon: Wallet },
+  { id: 'centros_custo', label: 'Centros de Custo', icon: Tags }
+];
 
 export default function DespesasTab() {
   const [despesas, setDespesas] = useState([]);
   const [fornecedores, setFornecedores] = useState([]);
   const [centrosCusto, setCentrosCusto] = useState([]);
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState(false);
   const [ccSelecionado, setCcSelecionado] = useState('');
+  const [subitem, setSubitem] = useState('lancamentos');
 
-  useEffect(() => {
-    (async () => {
-      setCarregando(true);
+  const carregar = async () => {
+    setCarregando(true); setErro(false);
+    try {
       const [d, f, cc] = await Promise.all([listarDespesas(), listarFornecedores(), listarCentrosCusto()]);
       setDespesas(d); setFornecedores(f); setCentrosCusto(cc);
+    } catch (e) {
+      setErro(true);
+    } finally {
       setCarregando(false);
-    })();
-  }, []);
+    }
+  };
+  useEffect(() => { carregar(); }, []);
 
   const fornecedoresMapa = useMemo(() => new Map(fornecedores.map(f => [f.codigo, f])), [fornecedores]);
   /* só entram despesas de fornecedor validado "é do CD" — é a mesma regra
@@ -64,12 +77,33 @@ export default function DespesasTab() {
     return Object.values(porFornecedor).sort((a, b) => b.total - a.total);
   }, [validadas, fornecedoresMapa, ccAtivo]);
 
+  if (erro) return <ErroCarregamento onTentarDeNovo={carregar} />;
   if (carregando) return <div style={styles.empty}>Carregando…</div>;
 
   return (
     <div>
       <div style={styles.secTitle}><Wallet size={19} /> Despesas</div>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: `1px solid ${C.prataClaro}`, paddingBottom: 14 }}>
+        {SUBITENS.map(s => {
+          const Icone = s.icon;
+          const ativo = subitem === s.id;
+          return (
+            <button key={s.id} onClick={() => setSubitem(s.id)} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', borderRadius: 20,
+              padding: '8px 16px', cursor: 'pointer', fontFamily: "'Montserrat',sans-serif", fontWeight: 700,
+              fontSize: 12.5, background: ativo ? C.navy : C.bgLeve, color: ativo ? C.branco : C.navy2
+            }}>
+              <Icone size={14} /> {s.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {subitem === 'centros_custo' ? (
+        <CentrosCustoManager centrosCusto={centrosCusto} fornecedores={fornecedores} onChange={carregar} />
+      ) : (
+      <>
       <div style={styles.kpiGrid}>
         <div style={{ ...styles.kpiCard, borderTopColor: C.vermelho }}>
           <div style={styles.kpiLabel}>Total (todos os meses)</div>
@@ -161,6 +195,8 @@ export default function DespesasTab() {
             </table>
           </div>
         </>
+      )}
+      </>
       )}
     </div>
   );

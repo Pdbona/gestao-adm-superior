@@ -38,6 +38,7 @@ export const styles = {
   kpiValor: { fontFamily: "'Roboto Mono',monospace", fontSize: 23, fontWeight: 700, margin: "10px 0 4px" },
   kpiNota: { fontSize: 11, color: C.prata, lineHeight: 1.35 },
   empty: { textAlign: "center", padding: "40px 20px", color: C.prata, fontSize: 13.5, background: C.branco, border: `1px dashed ${C.prataClaro}`, borderRadius: 10 },
+  erroCarregamento: { textAlign: "center", padding: "40px 20px", background: "#FFEBEE", border: `1px dashed ${C.vermelho}`, borderRadius: 10 },
   footer: { background: C.navy, color: C.branco, padding: "18px 26px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, fontFamily: "'Roboto',sans-serif", fontSize: 11.5, marginTop: 0, borderTop: `3px solid ${C.laranja}` }
 };
 

@@ -110,9 +110,14 @@ function BlocoDespesas({ usuario, aoImportar }) {
 
   useEffect(() => {
     (async () => {
-      const [f, cc] = await Promise.all([listarFornecedores(), listarCentrosCusto()]);
-      setFornecedoresMapa(new Map(f.map(x => [x.codigo, x])));
-      setCentrosCusto(cc);
+      try {
+        const [f, cc] = await Promise.all([listarFornecedores(), listarCentrosCusto()]);
+        setFornecedoresMapa(new Map(f.map(x => [x.codigo, x])));
+        setCentrosCusto(cc);
+      } catch (e) {
+        // silencioso: sem sugestão de CC pro fornecedor novo, mas não bloqueia
+        // a importação — a mensagem de erro real aparece ao tentar confirmar.
+      }
     })();
   }, []);
 
