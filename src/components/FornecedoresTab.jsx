@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Check, X, AlertTriangle, Tags } from 'lucide-react';
+import { Building2, Check, X, AlertTriangle, ArrowLeftRight } from 'lucide-react';
 import { C, styles } from '../styles';
 import { listarFornecedores, validarFornecedor, listarCentrosCusto } from '../lib/db';
 import ErroCarregamento from './ErroCarregamento';
@@ -44,11 +44,11 @@ export default function FornecedoresTab({ usuario }) {
     }
   };
 
-  const nomeCC = (id) => centrosCusto.find(c => c.id === id)?.nome || '—';
-
   const pendentes = fornecedores.filter(f => f.ehDoCD == null)
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  const validados = fornecedores.filter(f => f.ehDoCD != null)
+  const doCD = fornecedores.filter(f => f.ehDoCD === true)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  const naoDoCD = fornecedores.filter(f => f.ehDoCD === false)
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
   const seletorCC = (f, jaValidado) => (
@@ -70,18 +70,6 @@ export default function FornecedoresTab({ usuario }) {
         fornecedor — confirme ou troque). Valide se cada um <b>é do CD</b>: só entra nos totais depois
         de validado "Sim", e a validação vale também pros lançamentos já importados antes.
       </p>
-
-      <div style={{ ...styles.card, marginBottom: 20 }}>
-        <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13, color: C.navy, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7 }}>
-          <Tags size={15} /> Centros de Custo cadastrados
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-          {centrosCusto.map(cc => <span key={cc.id} style={styles.infoChip}>{cc.nome}</span>)}
-        </div>
-        <div style={{ fontSize: 11.5, color: C.prata, marginTop: 8 }}>
-          Pra criar, renomear ou apagar um Centro de Custo, use a aba Despesas → Centros de Custo.
-        </div>
-      </div>
 
       <div style={{
         fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy,
@@ -123,34 +111,72 @@ export default function FornecedoresTab({ usuario }) {
         </div>
       )}
 
-      <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, marginBottom: 10 }}>
-        Já validados ({validados.length})
-      </div>
-      {validados.length === 0 ? (
-        <div style={styles.empty}>Nenhum fornecedor validado ainda.</div>
-      ) : (
-        <div className="scroll-x" style={{ overflowX: 'auto' }}>
-          <table style={styles.table}>
-            <thead><tr>{['Código', 'Fornecedor', 'Status', 'Centro de Custo'].map(h => <th key={h} style={styles.th}>{h}</th>)}</tr></thead>
-            <tbody>
-              {validados.map(f => (
-                <tr key={f.codigo}>
-                  <td style={styles.tdMono}>{f.codigo}</td>
-                  <td style={styles.td}>{f.nome}</td>
-                  <td style={styles.td}>
-                    <button onClick={() => validar(f.codigo, !f.ehDoCD)} style={{
-                      ...styles.pill, border: 'none', cursor: 'pointer',
-                      background: f.ehDoCD ? '#EAF5EC' : '#FFEBEE',
-                      color: f.ehDoCD ? C.verde : C.vermelho
-                    }} title="Clique para inverter">{f.ehDoCD ? 'É do CD' : 'Não é do CD'}</button>
-                  </td>
-                  <td style={styles.td}>{f.ehDoCD ? seletorCC(f, true) : nomeCC(f.centroCustoId)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))', gap: 20 }}>
+        <div>
+          <div style={{
+            fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.verde,
+            marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8
+          }}>
+            <Check size={16} /> Fornecedores do CD ({doCD.length})
+          </div>
+          {doCD.length === 0 ? (
+            <div style={styles.empty}>Nenhum fornecedor do CD ainda.</div>
+          ) : (
+            <div className="scroll-x" style={{ overflowX: 'auto' }}>
+              <table style={styles.table}>
+                <thead><tr>{['Código', 'Fornecedor', 'Centro de Custo', ''].map(h => <th key={h} style={styles.th}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {doCD.map(f => (
+                    <tr key={f.codigo}>
+                      <td style={styles.tdMono}>{f.codigo}</td>
+                      <td style={styles.td}>{f.nome}</td>
+                      <td style={styles.td}>{seletorCC(f, true)}</td>
+                      <td style={styles.td}>
+                        <button onClick={() => validar(f.codigo, false)} disabled={processando === f.codigo}
+                          title="Mover para 'Não é do CD'" style={{ ...styles.btnGhost, padding: '7px 9px', borderColor: C.prataClaro, color: C.prata }}>
+                          <ArrowLeftRight size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
+
+        <div>
+          <div style={{
+            fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.vermelho,
+            marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8
+          }}>
+            <X size={16} /> Fornecedores que não são do CD ({naoDoCD.length})
+          </div>
+          {naoDoCD.length === 0 ? (
+            <div style={styles.empty}>Nenhum fornecedor fora do CD ainda.</div>
+          ) : (
+            <div className="scroll-x" style={{ overflowX: 'auto' }}>
+              <table style={styles.table}>
+                <thead><tr>{['Código', 'Fornecedor', ''].map(h => <th key={h} style={styles.th}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {naoDoCD.map(f => (
+                    <tr key={f.codigo}>
+                      <td style={styles.tdMono}>{f.codigo}</td>
+                      <td style={styles.td}>{f.nome}</td>
+                      <td style={styles.td}>
+                        <button onClick={() => validar(f.codigo, true)} disabled={processando === f.codigo}
+                          title="Mover para 'É do CD'" style={{ ...styles.btnGhost, padding: '7px 9px', borderColor: C.prataClaro, color: C.prata }}>
+                          <ArrowLeftRight size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
