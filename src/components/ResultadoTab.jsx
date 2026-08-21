@@ -1,25 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { LineChart } from 'lucide-react';
 import { C, styles, brl, mesLabel, variacaoPct } from '../styles';
-import { listarFaturamento, listarDespesas, listarFornecedores, listarFolha } from '../lib/db';
+import { listarFaturamento, listarDespesas, listarFornecedores, listarFolha, listarCentrosCusto } from '../lib/db';
 import { Variacao } from './Variacao';
 import ErroCarregamento from './ErroCarregamento';
 import DetalheModal from './DetalheModal';
 import GraficoResultado from './GraficoResultado';
-
-const COLUNAS_FATURAMENTO = [
-  { key: 'data', label: 'Data', formato: 'data' },
-  { key: 'documento', label: 'Documento' },
-  { key: 'clienteNome', label: 'Cliente' },
-  { key: 'categoriaOuTipo', label: 'Categoria' },
-  { key: 'valor', label: 'Valor', formato: 'moeda' }
-];
-const COLUNAS_DESPESA = [
-  { key: 'emissao', label: 'Emissão', formato: 'data' },
-  { key: 'documento', label: 'Documento' },
-  { key: 'fornecedorNome', label: 'Fornecedor' },
-  { key: 'valor', label: 'Valor', formato: 'moeda' }
-];
+import { agruparFaturamentoPorCliente, COLUNAS_FATURAMENTO_POR_CLIENTE, agruparDespesaPorCC, COLUNAS_DESPESA_POR_CC } from '../lib/agregacoes';
 
 /* Resultado = Faturamento Total − (Despesa Total + RH Total).
    Combinado com Pablo em 20/ago/2026. Despesa Total aqui é só fornecedor
@@ -33,10 +20,10 @@ export default function ResultadoTab() {
   const carregar = async () => {
     setErro(false);
     try {
-      const [faturamento, despesas, fornecedores, folha] = await Promise.all([
-        listarFaturamento(), listarDespesas(), listarFornecedores(), listarFolha()
+      const [faturamento, despesas, fornecedores, folha, centrosCusto] = await Promise.all([
+        listarFaturamento(), listarDespesas(), listarFornecedores(), listarFolha(), listarCentrosCusto()
       ]);
-      setDados({ faturamento, despesas, fornecedores, folha });
+      setDados({ faturamento, despesas, fornecedores, folha, centrosCusto });
     } catch (e) {
       setErro(true);
     }
@@ -72,16 +59,23 @@ export default function ResultadoTab() {
     return { faturamento, despesa, rh, resultado, resultadoPct: faturamento ? (resultado / faturamento) * 100 : 0 };
   }, [meses]);
 
+  /* resume por cliente (Faturamento) e por Centro de Custo (Despesa) em
+     vez de listar lançamento cru — combinado com Pablo em 21/ago/2026. */
   const abrirDetalheFaturamento = (competencia) => {
-    const linhas = dados.faturamento.filter(l => l.competencia === competencia)
-      .map(l => ({ ...l, categoriaOuTipo: l.categoriaLabel || (l.tipo === 'locacao' ? 'Locação (ND)' : l.tipo) }));
-    setDetalhe({ titulo: `Faturamento — ${mesLabel(competencia)}`, subtitulo: `${linhas.length} lançamento(s)`, colunas: COLUNAS_FATURAMENTO, linhas });
+    const linhas = dados.faturamento.filter(l => l.competencia === competencia);
+    setDetalhe({
+      titulo: `Faturamento — ${mesLabel(competencia)}`, subtitulo: `Por cliente · ${linhas.length} lançamento(s)`,
+      colunas: COLUNAS_FATURAMENTO_POR_CLIENTE, linhas: agruparFaturamentoPorCliente(linhas)
+    });
   };
 
   const abrirDetalheDespesa = (competencia) => {
     const fornecedoresMapa = new Map(dados.fornecedores.map(f => [f.codigo, f]));
     const linhas = dados.despesas.filter(d => d.competencia === competencia && fornecedoresMapa.get(d.fornecedorCodigo)?.ehDoCD === true);
-    setDetalhe({ titulo: `Despesa — ${mesLabel(competencia)}`, subtitulo: `${linhas.length} lançamento(s) validado(s)`, colunas: COLUNAS_DESPESA, linhas });
+    setDetalhe({
+      titulo: `Despesa — ${mesLabel(competencia)}`, subtitulo: `Por Centro de Custo · ${linhas.length} lançamento(s) validado(s)`,
+      colunas: COLUNAS_DESPESA_POR_CC, linhas: agruparDespesaPorCC(linhas, fornecedoresMapa, dados.centrosCusto)
+    });
   };
 
   if (erro) return <ErroCarregamento onTentarDeNovo={carregar} />;
