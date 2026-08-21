@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Wallet, Tags } from 'lucide-react';
+import { Wallet } from 'lucide-react';
 import { C, styles, brl, mesLabel, variacaoPct } from '../styles';
 import { listarDespesas, listarFornecedores, listarCentrosCusto } from '../lib/db';
 import { Variacao } from './Variacao';
 import ErroCarregamento from './ErroCarregamento';
-import CentrosCustoManager from './CentrosCustoManager';
+import DetalheModal from './DetalheModal';
 
-const SUBITENS = [
-  { id: 'lancamentos', label: 'Lançamentos', icon: Wallet },
-  { id: 'centros_custo', label: 'Centros de Custo', icon: Tags }
+const COLUNAS_DETALHE = [
+  { key: 'emissao', label: 'Emissão', formato: 'data' },
+  { key: 'documento', label: 'Documento' },
+  { key: 'fornecedorNome', label: 'Fornecedor' },
+  { key: 'tipoDocumentoLabel', label: 'Tipo' },
+  { key: 'valor', label: 'Valor', formato: 'moeda' }
 ];
 
 export default function DespesasTab() {
@@ -18,7 +21,7 @@ export default function DespesasTab() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(false);
   const [ccSelecionado, setCcSelecionado] = useState('');
-  const [subitem, setSubitem] = useState('lancamentos');
+  const [detalhe, setDetalhe] = useState(null);
 
   const carregar = async () => {
     setCarregando(true); setErro(false);
@@ -70,12 +73,34 @@ export default function DespesasTab() {
     validadas.forEach(d => {
       const ccId = fornecedoresMapa.get(d.fornecedorCodigo)?.centroCustoId || 'sem_cc';
       if (ccId !== ccAtivo) return;
-      if (!porFornecedor[d.fornecedorCodigo]) porFornecedor[d.fornecedorCodigo] = { nome: d.fornecedorNome, total: 0, n: 0 };
+      if (!porFornecedor[d.fornecedorCodigo]) porFornecedor[d.fornecedorCodigo] = { codigo: d.fornecedorCodigo, nome: d.fornecedorNome, total: 0, n: 0 };
       porFornecedor[d.fornecedorCodigo].total += d.valor;
       porFornecedor[d.fornecedorCodigo].n += 1;
     });
     return Object.values(porFornecedor).sort((a, b) => b.total - a.total);
   }, [validadas, fornecedoresMapa, ccAtivo]);
+
+  const ccIdDe = (d) => fornecedoresMapa.get(d.fornecedorCodigo)?.centroCustoId || 'sem_cc';
+  const nomeCC = (id) => id === 'sem_cc' ? 'Não Classificado' : (centrosCusto.find(c => c.id === id)?.nome || '—');
+
+  /* célula do Sintético: mês + Centro de Custo (ou mês inteiro, se ccId omitido) */
+  const abrirDetalheSintetico = (competencia, ccId) => {
+    const linhas = validadas.filter(d => d.competencia === competencia && (!ccId || ccIdDe(d) === ccId));
+    setDetalhe({
+      titulo: ccId ? `${nomeCC(ccId)} — ${mesLabel(competencia)}` : `Todas as despesas — ${mesLabel(competencia)}`,
+      subtitulo: `${linhas.length} lançamento(s) validado(s)`,
+      colunas: COLUNAS_DETALHE, linhas
+    });
+  };
+
+  /* linha do Analítico: fornecedor dentro do CC ativo */
+  const abrirDetalheFornecedor = (fornecedorCodigo, nome) => {
+    const linhas = validadas.filter(d => d.fornecedorCodigo === fornecedorCodigo && ccIdDe(d) === ccAtivo);
+    setDetalhe({
+      titulo: nome, subtitulo: `${nomeCC(ccAtivo)} — todos os meses`,
+      colunas: COLUNAS_DETALHE.filter(c => c.key !== 'fornecedorNome'), linhas
+    });
+  };
 
   if (erro) return <ErroCarregamento onTentarDeNovo={carregar} />;
   if (carregando) return <div style={styles.empty}>Carregando…</div>;
@@ -84,26 +109,6 @@ export default function DespesasTab() {
     <div>
       <div style={styles.secTitle}><Wallet size={19} /> Despesas</div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: `1px solid ${C.prataClaro}`, paddingBottom: 14 }}>
-        {SUBITENS.map(s => {
-          const Icone = s.icon;
-          const ativo = subitem === s.id;
-          return (
-            <button key={s.id} onClick={() => setSubitem(s.id)} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 7, border: 'none', borderRadius: 20,
-              padding: '8px 16px', cursor: 'pointer', fontFamily: "'Montserrat',sans-serif", fontWeight: 700,
-              fontSize: 12.5, background: ativo ? C.navy : C.bgLeve, color: ativo ? C.branco : C.navy2
-            }}>
-              <Icone size={14} /> {s.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {subitem === 'centros_custo' ? (
-        <CentrosCustoManager centrosCusto={centrosCusto} fornecedores={fornecedores} onChange={carregar} />
-      ) : (
-      <>
       <div style={styles.kpiGrid}>
         <div style={{ ...styles.kpiCard, borderTopColor: C.vermelho }}>
           <div style={styles.kpiLabel}>Total (todos os meses)</div>
@@ -136,8 +141,10 @@ export default function DespesasTab() {
                 return (
                   <tr key={l.competencia}>
                     <td style={styles.td}>{mesLabel(l.competencia)}</td>
-                    {sintetico.colunas.map(c => <td key={c.id} style={styles.tdMono}>{l.porCC[c.id] ? brl(l.porCC[c.id]) : '—'}</td>)}
-                    <td style={{ ...styles.tdMono, fontWeight: 700 }}>{brl(l.total)}<Variacao pct={pct} /></td>
+                    {sintetico.colunas.map(c => l.porCC[c.id] ? (
+                      <td key={c.id} style={styles.tdValorClicavel} onClick={() => abrirDetalheSintetico(l.competencia, c.id)}>{brl(l.porCC[c.id])}</td>
+                    ) : <td key={c.id} style={styles.tdMono}>—</td>)}
+                    <td style={{ ...styles.tdValorClicavel, fontWeight: 700 }} onClick={() => abrirDetalheSintetico(l.competencia)}>{brl(l.total)}<Variacao pct={pct} /></td>
                   </tr>
                 );
               })}
@@ -181,7 +188,7 @@ export default function DespesasTab() {
                   <tr key={f.nome}>
                     <td style={styles.td}>{f.nome}</td>
                     <td style={styles.tdMono}>{f.n}</td>
-                    <td style={styles.tdMono}>{brl(f.total)}</td>
+                    <td style={styles.tdValorClicavel} onClick={() => abrirDetalheFornecedor(f.codigo, f.nome)}>{brl(f.total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -196,8 +203,7 @@ export default function DespesasTab() {
           </div>
         </>
       )}
-      </>
-      )}
+      <DetalheModal detalhe={detalhe} onFechar={() => setDetalhe(null)} />
     </div>
   );
 }

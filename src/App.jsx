@@ -6,6 +6,7 @@ import FaturamentoTab from './components/FaturamentoTab';
 import DespesasTab from './components/DespesasTab';
 import FornecedoresTab from './components/FornecedoresTab';
 import ResultadoTab from './components/ResultadoTab';
+import CentrosCustoTab from './components/CentrosCustoTab';
 import SUP_LOGO from './assets/Logo_Superior.png';
 
 const K_USUARIO = 'gestao_adm_usuario';
@@ -95,6 +96,7 @@ export default function App() {
       {aba === 'despesas' && <DespesasTab />}
       {aba === 'fornecedores' && <FornecedoresTab usuario={usuario} />}
       {aba === 'resultado' && <ResultadoTab />}
+      {aba === 'centros_custo' && <CentrosCustoTab />}
     </Layout>
   );
 }

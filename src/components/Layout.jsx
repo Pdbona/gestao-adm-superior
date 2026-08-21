@@ -1,22 +1,47 @@
 import React, { useState } from 'react';
-import { Menu, X, Upload, Receipt, Wallet, Building2, LineChart, LogOut } from 'lucide-react';
+import { Menu, X, Upload, Receipt, Wallet, Building2, LineChart, LogOut, FolderCog, Tags, ChevronDown, ChevronRight } from 'lucide-react';
 import { C, styles } from '../styles';
 import SUP_LOGO from '../assets/Logo_Superior.png';
 import SBS_LOGO from '../assets/Logo_SBS.png';
 
 /* Mesmos ids usados em SUBITENS_POR_ABA.administrativo, no Operacional —
-   é o que o perfil de lá controla via urlAdministrativo(?ocultar=). */
+   é o que o perfil de lá controla via urlAdministrativo(?ocultar=). Lista
+   plana (pra RBAC e pro conteúdo em App.jsx); o agrupamento visual em
+   "Cadastro" é só de exibição, ver NAV_ITENS abaixo. `centros_custo` é
+   novo (saiu de dentro de Despesas em 21/ago/2026) — ainda não existe no
+   perfil administrativo do Operacional, então por enquanto ninguém
+   consegue ocultar essa aba por lá; avisar o Pablo pra sincronizar
+   quando puder. */
 export const ABAS = [
-  { id: 'importacao', label: 'Importação', icon: Upload },
+  { id: 'resultado', label: 'Resultado', icon: LineChart },
   { id: 'faturamento', label: 'Faturamento', icon: Receipt },
   { id: 'despesas', label: 'Despesas', icon: Wallet },
+  { id: 'importacao', label: 'Importar Arquivos', icon: Upload },
   { id: 'fornecedores', label: 'Fornecedores', icon: Building2 },
-  { id: 'resultado', label: 'Resultado', icon: LineChart }
+  { id: 'centros_custo', label: 'Centro de Custo', icon: Tags }
+];
+
+/* Agrupamento visual da sidebar — combinado com Pablo em 21/ago/2026:
+   Resultado, Faturamento e Despesas soltos; Importar Arquivos,
+   Fornecedores e Centro de Custo dentro de um grupo "Cadastro" (abre/
+   fecha, some se todos os filhos estiverem ocultos pro perfil). */
+const NAV_ITENS = [
+  { id: 'resultado' },
+  { id: 'faturamento' },
+  { id: 'despesas' },
+  { grupo: 'cadastro', label: 'Cadastro', icon: FolderCog, filhos: ['importacao', 'fornecedores', 'centros_custo'] }
 ];
 
 export default function Layout({ aba, setAba, usuario, sair, ocultar, children }) {
   const [menuAberto, setMenuAberto] = useState(false);
   const abasVisiveis = ABAS.filter(a => !ocultar?.includes(a.id));
+  const idsVisiveis = new Set(abasVisiveis.map(a => a.id));
+  const porId = Object.fromEntries(ABAS.map(a => [a.id, a]));
+
+  const grupoDoAtivo = NAV_ITENS.find(it => it.grupo && it.filhos.includes(aba))?.grupo;
+  const [grupoAberto, setGrupoAberto] = useState(grupoDoAtivo || null);
+
+  const irPara = (id) => { setAba(id); setMenuAberto(false); };
 
   return (
     <div style={{ ...styles.page, display: 'flex', flexDirection: 'column' }}>
@@ -64,14 +89,47 @@ export default function Layout({ aba, setAba, usuario, sair, ocultar, children }
               <X size={17} />
             </button>
           </div>
-          {abasVisiveis.map(a => {
-            const Icone = a.icon;
-            const ativo = aba === a.id;
+          {NAV_ITENS.map(item => {
+            if (!item.grupo) {
+              if (!idsVisiveis.has(item.id)) return null;
+              const a = porId[item.id];
+              const Icone = a.icon;
+              const ativo = aba === a.id;
+              return (
+                <button key={a.id} onClick={() => irPara(a.id)}
+                  style={{ ...styles.sidebarItem, ...(ativo ? styles.sidebarItemAtivo : {}) }}>
+                  <Icone size={17} strokeWidth={2.2} /> {a.label}
+                </button>
+              );
+            }
+            const filhosVisiveis = item.filhos.filter(id => idsVisiveis.has(id));
+            if (filhosVisiveis.length === 0) return null;
+            const Icone = item.icon;
+            const aberto = grupoAberto === item.grupo;
+            const temAtivo = filhosVisiveis.includes(aba);
             return (
-              <button key={a.id} onClick={() => { setAba(a.id); setMenuAberto(false); }}
-                style={{ ...styles.sidebarItem, ...(ativo ? styles.sidebarItemAtivo : {}) }}>
-                <Icone size={17} strokeWidth={2.2} /> {a.label}
-              </button>
+              <div key={item.grupo}>
+                <button onClick={() => setGrupoAberto(aberto ? null : item.grupo)}
+                  style={{ ...styles.sidebarItem, ...(temAtivo && !aberto ? styles.sidebarItemAtivo : {}), justifyContent: 'space-between' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Icone size={17} strokeWidth={2.2} /> {item.label}
+                  </span>
+                  {aberto ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                </button>
+                {aberto && filhosVisiveis.map(id => {
+                  const a = porId[id];
+                  const IconeFilho = a.icon;
+                  const ativo = aba === a.id;
+                  return (
+                    <button key={a.id} onClick={() => irPara(a.id)} style={{
+                      ...styles.sidebarItem, ...(ativo ? styles.sidebarItemAtivo : {}),
+                      paddingLeft: 30, fontSize: 12.5
+                    }}>
+                      <IconeFilho size={15} strokeWidth={2.2} /> {a.label}
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>

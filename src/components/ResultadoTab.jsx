@@ -4,6 +4,22 @@ import { C, styles, brl, mesLabel, variacaoPct } from '../styles';
 import { listarFaturamento, listarDespesas, listarFornecedores, listarFolha } from '../lib/db';
 import { Variacao } from './Variacao';
 import ErroCarregamento from './ErroCarregamento';
+import DetalheModal from './DetalheModal';
+import GraficoResultado from './GraficoResultado';
+
+const COLUNAS_FATURAMENTO = [
+  { key: 'data', label: 'Data', formato: 'data' },
+  { key: 'documento', label: 'Documento' },
+  { key: 'clienteNome', label: 'Cliente' },
+  { key: 'categoriaOuTipo', label: 'Categoria' },
+  { key: 'valor', label: 'Valor', formato: 'moeda' }
+];
+const COLUNAS_DESPESA = [
+  { key: 'emissao', label: 'Emissão', formato: 'data' },
+  { key: 'documento', label: 'Documento' },
+  { key: 'fornecedorNome', label: 'Fornecedor' },
+  { key: 'valor', label: 'Valor', formato: 'moeda' }
+];
 
 /* Resultado = Faturamento Total − (Despesa Total + RH Total).
    Combinado com Pablo em 20/ago/2026. Despesa Total aqui é só fornecedor
@@ -12,6 +28,7 @@ import ErroCarregamento from './ErroCarregamento';
 export default function ResultadoTab() {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(false);
+  const [detalhe, setDetalhe] = useState(null);
 
   const carregar = async () => {
     setErro(false);
@@ -55,6 +72,18 @@ export default function ResultadoTab() {
     return { faturamento, despesa, rh, resultado, resultadoPct: faturamento ? (resultado / faturamento) * 100 : 0 };
   }, [meses]);
 
+  const abrirDetalheFaturamento = (competencia) => {
+    const linhas = dados.faturamento.filter(l => l.competencia === competencia)
+      .map(l => ({ ...l, categoriaOuTipo: l.categoriaLabel || (l.tipo === 'locacao' ? 'Locação (ND)' : l.tipo) }));
+    setDetalhe({ titulo: `Faturamento — ${mesLabel(competencia)}`, subtitulo: `${linhas.length} lançamento(s)`, colunas: COLUNAS_FATURAMENTO, linhas });
+  };
+
+  const abrirDetalheDespesa = (competencia) => {
+    const fornecedoresMapa = new Map(dados.fornecedores.map(f => [f.codigo, f]));
+    const linhas = dados.despesas.filter(d => d.competencia === competencia && fornecedoresMapa.get(d.fornecedorCodigo)?.ehDoCD === true);
+    setDetalhe({ titulo: `Despesa — ${mesLabel(competencia)}`, subtitulo: `${linhas.length} lançamento(s) validado(s)`, colunas: COLUNAS_DESPESA, linhas });
+  };
+
   if (erro) return <ErroCarregamento onTentarDeNovo={carregar} />;
   if (!dados) return <div style={styles.empty}>Carregando…</div>;
 
@@ -68,23 +97,34 @@ export default function ResultadoTab() {
       ) : (
         <>
           <div style={styles.kpiGrid}>
-            <div style={{ ...styles.kpiCard, borderTopColor: C.verde }}>
+            <div style={{ ...styles.kpiCard, borderTopColor: C.azul }}>
               <div style={styles.kpiLabel}>Faturamento Total</div>
-              <div style={{ ...styles.kpiValor, color: C.verde }}>{brl(totais.faturamento)}</div>
-            </div>
-            <div style={{ ...styles.kpiCard, borderTopColor: C.vermelho }}>
-              <div style={styles.kpiLabel}>Despesa Total</div>
-              <div style={{ ...styles.kpiValor, color: C.vermelho }}>{brl(totais.despesa)}</div>
-            </div>
-            <div style={{ ...styles.kpiCard, borderTopColor: C.vermelho }}>
-              <div style={styles.kpiLabel}>RH Total</div>
-              <div style={{ ...styles.kpiValor, color: C.vermelho }}>{brl(totais.rh)}</div>
+              <div style={{ ...styles.kpiValor, color: C.azul }}>{brl(totais.faturamento)}</div>
             </div>
             <div style={{ ...styles.kpiCard, borderTopColor: C.laranja }}>
+              <div style={styles.kpiLabel}>Despesa Total</div>
+              <div style={{ ...styles.kpiValor, color: C.laranjaEsc }}>{brl(totais.despesa)}</div>
+            </div>
+            <div style={{ ...styles.kpiCard, borderTopColor: C.laranja }}>
+              <div style={styles.kpiLabel}>RH Total</div>
+              <div style={{ ...styles.kpiValor, color: C.laranjaEsc }}>{brl(totais.rh)}</div>
+            </div>
+            <div style={{ ...styles.kpiCard, borderTopColor: C.navy }}>
               <div style={styles.kpiLabel}>Resultado</div>
-              <div style={{ ...styles.kpiValor, color: totais.resultado >= 0 ? C.verde : C.vermelho }}>{brl(totais.resultado)}</div>
+              <div style={{ ...styles.kpiValor, color: totais.resultado >= 0 ? C.navy : C.vermelho }}>{brl(totais.resultado)}</div>
               <div style={styles.kpiNota}>{totais.resultadoPct.toFixed(1)}% do faturado</div>
             </div>
+          </div>
+
+          <div style={{
+            ...styles.card, borderTop: `4px solid ${C.navy}`, padding: '22px 24px 16px', marginBottom: 26,
+            boxShadow: '0 6px 24px rgba(30,58,95,.12)'
+          }}>
+            <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 14.5, color: C.navy, marginBottom: 4 }}>
+              Evolução mensal — Faturamento, Saída e Resultado
+            </div>
+            <p style={{ ...styles.helper, marginBottom: 14 }}>Passe o mouse sobre um mês pra ver o detalhe. Saída = Despesa Total + RH Total.</p>
+            <GraficoResultado meses={meses} />
           </div>
 
           <div className="scroll-x" style={{ overflowX: 'auto', marginTop: 10 }}>
@@ -97,8 +137,8 @@ export default function ResultadoTab() {
                   return (
                     <tr key={m.competencia}>
                       <td style={styles.td}>{mesLabel(m.competencia)}</td>
-                      <td style={styles.tdMono}>{brl(m.faturamento)}</td>
-                      <td style={styles.tdMono}>{brl(m.despesa)}</td>
+                      <td style={styles.tdValorClicavel} onClick={() => abrirDetalheFaturamento(m.competencia)}>{brl(m.faturamento)}</td>
+                      <td style={styles.tdValorClicavel} onClick={() => abrirDetalheDespesa(m.competencia)}>{brl(m.despesa)}</td>
                       <td style={styles.tdMono}>{brl(m.rh)}</td>
                       <td style={{ ...styles.tdMono, fontWeight: 700, color: m.resultado >= 0 ? C.verde : C.vermelho }}>{brl(m.resultado)}<Variacao pct={pct} /></td>
                       <td style={styles.tdMono}>{m.resultadoPct.toFixed(1)}%</td>
@@ -121,6 +161,7 @@ export default function ResultadoTab() {
           <div style={{ fontSize: 11, color: C.prata, marginTop: 6 }}>Sinalizado ▲/▼ quando o Resultado do mês varia mais de 10% em relação ao mês anterior.</div>
         </>
       )}
+      <DetalheModal detalhe={detalhe} onFechar={() => setDetalhe(null)} />
     </div>
   );
 }

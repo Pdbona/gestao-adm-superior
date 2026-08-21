@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { C, styles } from '../styles';
 import { criarCentroCusto, renomearCentroCusto, excluirCentroCusto } from '../lib/db';
 
-/* Subitem de Despesas pra manter os Centros de Custo (criar, renomear,
+/* Tela de Cadastro pra manter os Centros de Custo (criar, renomear,
    apagar) sem precisar mexer direto no Firestore. Recebe centrosCusto e
-   fornecedores já carregados pelo DespesasTab — evita duplicar a leitura.
-   Combinado com Pablo em 21/ago/2026, junto com a importação da planilha
-   de Cadastro de CC. */
+   fornecedores já carregados pelo CentrosCustoTab. Lista fica recolhida
+   por padrão (só a contagem) — combinado com Pablo em 21/ago/2026: não
+   precisa listar tudo de cara, só quando ele quiser conferir. */
 export default function CentrosCustoManager({ centrosCusto, fornecedores, onChange }) {
   const [novoCC, setNovoCC] = useState('');
   const [salvando, setSalvando] = useState(false);
@@ -15,6 +15,7 @@ export default function CentrosCustoManager({ centrosCusto, fornecedores, onChan
   const [nomeEdicao, setNomeEdicao] = useState('');
   const [processandoId, setProcessandoId] = useState(null);
   const [erro, setErro] = useState('');
+  const [expandido, setExpandido] = useState(false);
 
   /* só o vínculo confirmado (centroCustoId) conta como "em uso" — uma
      sugestão pendente (centroCustoSugeridoId) não trava exclusão */
@@ -98,10 +99,14 @@ export default function CentrosCustoManager({ centrosCusto, fornecedores, onChan
         {erro && <div style={styles.erro}><X size={15} /> {erro}</div>}
       </div>
 
-      <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, marginBottom: 10 }}>
-        Cadastrados ({lista.length})
-      </div>
-      {lista.length === 0 ? (
+      <button onClick={() => setExpandido(v => !v)} style={{
+        display: 'flex', alignItems: 'center', gap: 7, background: 'transparent', border: 'none', cursor: 'pointer',
+        padding: 0, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, marginBottom: expandido ? 10 : 0
+      }}>
+        {expandido ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+        Cadastrados ({lista.length}) {!expandido && <span style={{ fontWeight: 400, color: C.prata, fontSize: 12 }}>— clique pra ver</span>}
+      </button>
+      {expandido && (lista.length === 0 ? (
         <div style={styles.empty}>Nenhum Centro de Custo cadastrado ainda.</div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
@@ -153,7 +158,7 @@ export default function CentrosCustoManager({ centrosCusto, fornecedores, onChan
             );
           })}
         </div>
-      )}
+      ))}
     </div>
   );
 }
