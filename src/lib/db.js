@@ -5,13 +5,18 @@ import { db } from '../firebase';
 
 /* ---------- centros de custo ----------
    Lista semeada automaticamente na primeira vez que alguém abre a aba
-   Fornecedores/Despesas (se a coleção estiver vazia) — evita exigir
+   Despesas/Fornecedores (se a coleção estiver vazia) — evita exigir
    cadastro manual antes de conseguir usar o app. Continua 100% editável
-   depois (criarCentroCusto). */
+   depois (criarCentroCusto/renomearCentroCusto/excluirCentroCusto), na
+   aba Despesas → Centros de Custo. Lista real definida com Pablo em
+   21/ago/2026, a partir do cadastro que ele já mantinha na planilha de
+   controle (substitui a lista genérica inicial — nenhum fornecedor havia
+   sido validado com ela ainda). */
 export const CENTROS_CUSTO_PADRAO = [
-  'Aluguel e Ocupação', 'Utilidades (Água/Energia)', 'Impostos e Taxas',
-  'Materiais e Produtos', 'Serviços Gerais', 'Manutenção', 'Folha e Encargos',
-  'Não Classificado'
+  'Aluguel', 'Comercial', 'Condomínio', 'Consultoria', 'Energia',
+  'Filme Stretch', 'Imposto', 'Insumo Operacional', 'Locação Equipamento',
+  'Manutenção Equipamento', 'Manutenção Predial', 'MDO Terceirizada',
+  'Perda Cliente', 'RH', 'TI', 'Água'
 ];
 
 export async function listarCentrosCusto() {
@@ -29,6 +34,16 @@ export async function listarCentrosCusto() {
 export async function criarCentroCusto(nome) {
   const ref = await addDoc(collection(db, 'centros_custo'), { nome: nome.trim(), criadoEm: Date.now() });
   return ref.id;
+}
+
+export async function renomearCentroCusto(id, nome) {
+  await setDoc(doc(db, 'centros_custo', id), { nome: nome.trim() }, { merge: true });
+}
+
+/* Só apaga se ninguém estiver usando (checado na UI antes de chamar) —
+   não valida de novo aqui pra não duplicar a leitura de fornecedores. */
+export async function excluirCentroCusto(id) {
+  await deleteDoc(doc(db, 'centros_custo', id));
 }
 
 /* ---------- fornecedores ---------- */

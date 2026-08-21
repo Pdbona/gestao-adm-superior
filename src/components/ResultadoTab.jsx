@@ -3,6 +3,7 @@ import { LineChart } from 'lucide-react';
 import { C, styles, brl, mesLabel, variacaoPct } from '../styles';
 import { listarFaturamento, listarDespesas, listarFornecedores, listarFolha } from '../lib/db';
 import { Variacao } from './Variacao';
+import ErroCarregamento from './ErroCarregamento';
 
 /* Resultado = Faturamento Total − (Despesa Total + RH Total).
    Combinado com Pablo em 20/ago/2026. Despesa Total aqui é só fornecedor
@@ -10,15 +11,20 @@ import { Variacao } from './Variacao';
    Pagamento (Total Líquido a Pagar + Férias, do mês). */
 export default function ResultadoTab() {
   const [dados, setDados] = useState(null);
+  const [erro, setErro] = useState(false);
 
-  useEffect(() => {
-    (async () => {
+  const carregar = async () => {
+    setErro(false);
+    try {
       const [faturamento, despesas, fornecedores, folha] = await Promise.all([
         listarFaturamento(), listarDespesas(), listarFornecedores(), listarFolha()
       ]);
       setDados({ faturamento, despesas, fornecedores, folha });
-    })();
-  }, []);
+    } catch (e) {
+      setErro(true);
+    }
+  };
+  useEffect(() => { carregar(); }, []);
 
   const meses = useMemo(() => {
     if (!dados) return [];
@@ -49,6 +55,7 @@ export default function ResultadoTab() {
     return { faturamento, despesa, rh, resultado, resultadoPct: faturamento ? (resultado / faturamento) * 100 : 0 };
   }, [meses]);
 
+  if (erro) return <ErroCarregamento onTentarDeNovo={carregar} />;
   if (!dados) return <div style={styles.empty}>Carregando…</div>;
 
   return (

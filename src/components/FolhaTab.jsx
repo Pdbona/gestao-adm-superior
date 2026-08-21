@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Landmark, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { C, styles, brl } from '../styles';
 import { salvarFolha, listarFolha } from '../lib/db';
+import ErroCarregamento from './ErroCarregamento';
 
 /* Os 10 itens do PDF "Resumo Geral" do RH — mesma lista já validada
    manualmente no projeto DRE_Diretoria_Superior. Preenchimento manual:
@@ -34,11 +35,17 @@ export default function FolhaTab({ usuario }) {
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState(null);
   const [erro, setErro] = useState('');
+  const [erroCarregamento, setErroCarregamento] = useState(false);
 
   const carregar = async () => {
-    setCarregando(true);
-    setHistorico(await listarFolha());
-    setCarregando(false);
+    setCarregando(true); setErroCarregamento(false);
+    try {
+      setHistorico(await listarFolha());
+    } catch (e) {
+      setErroCarregamento(true);
+    } finally {
+      setCarregando(false);
+    }
   };
   useEffect(() => { carregar(); }, []);
 
@@ -117,7 +124,9 @@ export default function FolhaTab({ usuario }) {
         <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, marginBottom: 10 }}>
           Histórico mensal
         </div>
-        {carregando ? (
+        {erroCarregamento ? (
+          <ErroCarregamento onTentarDeNovo={carregar} />
+        ) : carregando ? (
           <div style={styles.empty}>Carregando…</div>
         ) : historico.length === 0 ? (
           <div style={styles.empty}>Nenhuma folha lançada ainda.</div>

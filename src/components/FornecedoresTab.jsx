@@ -1,22 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Check, X, AlertTriangle, Plus } from 'lucide-react';
+import { Building2, Check, X, AlertTriangle, Tags } from 'lucide-react';
 import { C, styles } from '../styles';
-import { listarFornecedores, validarFornecedor, listarCentrosCusto, criarCentroCusto } from '../lib/db';
+import { listarFornecedores, validarFornecedor, listarCentrosCusto } from '../lib/db';
+import ErroCarregamento from './ErroCarregamento';
 
 export default function FornecedoresTab({ usuario }) {
   const [fornecedores, setFornecedores] = useState([]);
   const [centrosCusto, setCentrosCusto] = useState([]);
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState(false);
   const [processando, setProcessando] = useState(null);
   const [ccEscolha, setCcEscolha] = useState({}); // { [codigoFornecedor]: centroCustoId }
-  const [novoCC, setNovoCC] = useState('');
-  const [salvandoCC, setSalvandoCC] = useState(false);
 
   const carregar = async () => {
-    setCarregando(true);
-    const [f, cc] = await Promise.all([listarFornecedores(), listarCentrosCusto()]);
-    setFornecedores(f); setCentrosCusto(cc);
-    setCarregando(false);
+    setCarregando(true); setErro(false);
+    try {
+      const [f, cc] = await Promise.all([listarFornecedores(), listarCentrosCusto()]);
+      setFornecedores(f); setCentrosCusto(cc);
+    } catch (e) {
+      setErro(true);
+    } finally {
+      setCarregando(false);
+    }
   };
   useEffect(() => { carregar(); }, []);
 
@@ -39,15 +44,6 @@ export default function FornecedoresTab({ usuario }) {
     }
   };
 
-  const adicionarCC = async () => {
-    if (!novoCC.trim()) return;
-    setSalvandoCC(true);
-    await criarCentroCusto(novoCC);
-    setNovoCC('');
-    await carregar();
-    setSalvandoCC(false);
-  };
-
   const nomeCC = (id) => centrosCusto.find(c => c.id === id)?.nome || '—';
 
   const pendentes = fornecedores.filter(f => f.ehDoCD == null)
@@ -63,6 +59,8 @@ export default function FornecedoresTab({ usuario }) {
     </select>
   );
 
+  if (erro) return <ErroCarregamento onTentarDeNovo={carregar} />;
+
   return (
     <div>
       <div style={styles.secTitle}><Building2 size={19} /> Fornecedores</div>
@@ -74,18 +72,14 @@ export default function FornecedoresTab({ usuario }) {
       </p>
 
       <div style={{ ...styles.card, marginBottom: 20 }}>
-        <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13, color: C.navy, marginBottom: 10 }}>
-          Centros de Custo cadastrados
+        <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13, color: C.navy, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7 }}>
+          <Tags size={15} /> Centros de Custo cadastrados
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
           {centrosCusto.map(cc => <span key={cc.id} style={styles.infoChip}>{cc.nome}</span>)}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input value={novoCC} onChange={e => setNovoCC(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && adicionarCC()}
-            placeholder="Novo centro de custo…" style={{ ...styles.input, maxWidth: 280 }} />
-          <button onClick={adicionarCC} disabled={salvandoCC || !novoCC.trim()}
-            style={{ ...styles.btnGhost, opacity: novoCC.trim() ? 1 : .5 }}><Plus size={14} /> Adicionar</button>
+        <div style={{ fontSize: 11.5, color: C.prata, marginTop: 8 }}>
+          Pra criar, renomear ou apagar um Centro de Custo, use a aba Despesas → Centros de Custo.
         </div>
       </div>
 

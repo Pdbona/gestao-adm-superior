@@ -3,18 +3,24 @@ import { Receipt } from 'lucide-react';
 import { C, styles, brl, mesLabel, variacaoPct } from '../styles';
 import { listarFaturamento } from '../lib/db';
 import { Variacao } from './Variacao';
+import ErroCarregamento from './ErroCarregamento';
 
 export default function FaturamentoTab() {
   const [lancamentos, setLancamentos] = useState([]);
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      setCarregando(true);
+  const carregar = async () => {
+    setCarregando(true); setErro(false);
+    try {
       setLancamentos(await listarFaturamento());
+    } catch (e) {
+      setErro(true);
+    } finally {
       setCarregando(false);
-    })();
-  }, []);
+    }
+  };
+  useEffect(() => { carregar(); }, []);
 
   const totalServico = useMemo(() => lancamentos.filter(l => l.tipo === 'servico').reduce((s, l) => s + (l.valor || 0), 0), [lancamentos]);
   const totalLocacao = useMemo(() => lancamentos.filter(l => l.tipo === 'locacao').reduce((s, l) => s + (l.valor || 0), 0), [lancamentos]);
@@ -45,6 +51,7 @@ export default function FaturamentoTab() {
     return Object.values(porCliente).sort((a, b) => b.total - a.total);
   }, [lancamentos]);
 
+  if (erro) return <ErroCarregamento onTentarDeNovo={carregar} />;
   if (carregando) return <div style={styles.empty}>Carregando…</div>;
 
   return (
