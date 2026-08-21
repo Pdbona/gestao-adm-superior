@@ -1,16 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Landmark, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Landmark, CheckCircle2, AlertTriangle, FileUp } from 'lucide-react';
 import { C, styles, brl } from '../styles';
 import { salvarFolha, listarFolha } from '../lib/db';
+import { lerPlanilha } from '../lib/xls';
+import { parseFolha } from '../lib/parsers';
 import ErroCarregamento from './ErroCarregamento';
+import FileInput from './FileInput';
 
 /* Os 10 itens do PDF "Resumo Geral" do RH — mesma lista já validada
-   manualmente no projeto DRE_Diretoria_Superior. Preenchimento manual:
-   testamos extração automática (pdf.js) em 20/ago/2026 e o PDF do RH não
-   tem camada de texto nenhuma (texto desenhado como vetor, sem texto
-   real por trás) — nenhuma biblioteca de extração de texto lê isso,
-   só OCR resolveria, com risco real de erro em número financeiro. Quem
-   lê o PDF e digita aqui é o Pablo (ou eu, no chat, e ele só confere). */
+   manualmente no projeto DRE_Diretoria_Superior. O PDF do RH não tem
+   camada de texto nenhuma (texto desenhado como vetor) — nenhuma
+   biblioteca de extração lê isso direto, só OCR resolveria, com risco
+   real de erro em número financeiro. Por isso o caminho é: o Claude lê
+   o PDF visualmente no chat e gera uma planilha (Folha_RH_AAAA-MM.xlsx,
+   ver parseFolha em lib/parsers.js) — essa planilha sim é importável
+   aqui embaixo, preenche os campos pra conferência antes de salvar.
+   Combinado com Pablo em 21/ago/2026. */
 const CAMPOS = [
   { id: 'totalLiquidoPagar', label: 'Total Líquido a Pagar', destaque: true },
   { id: 'totalLiquidoPagarFerias', label: 'Total Líquido a Pagar (Férias)', destaque: true },
@@ -36,6 +41,8 @@ export default function FolhaTab({ usuario }) {
   const [msg, setMsg] = useState(null);
   const [erro, setErro] = useState('');
   const [erroCarregamento, setErroCarregamento] = useState(false);
+  const [arquivoImportado, setArquivoImportado] = useState(null);
+  const [avisosImportacao, setAvisosImportacao] = useState([]);
 
   const carregar = async () => {
     setCarregando(true); setErroCarregamento(false);
@@ -56,9 +63,26 @@ export default function FolhaTab({ usuario }) {
     } else {
       setValores(vazio);
     }
+    setArquivoImportado(null); setAvisosImportacao([]);
   }, [competencia, historico]);
 
   const set = (id, v) => setValores(s => ({ ...s, [id]: v }));
+
+  const importar = async (file) => {
+    setArquivoImportado(file); setErro(''); setMsg(null); setAvisosImportacao([]);
+    try {
+      const rows = await lerPlanilha(file);
+      const resultado = parseFolha(rows, competencia);
+      if (!resultado.valores) {
+        setErro(resultado.avisos[0] || 'Não consegui ler essa planilha.');
+        return;
+      }
+      setValores(Object.fromEntries(CAMPOS.map(c => [c.id, String(resultado.valores[c.id])])));
+      setAvisosImportacao(resultado.avisos);
+    } catch (e) {
+      setErro('Não consegui ler este arquivo. Confira se é um .xls/.xlsx válido.');
+    }
+  };
 
   const salvar = async () => {
     setSalvando(true); setErro(''); setMsg(null);
@@ -99,6 +123,20 @@ export default function FolhaTab({ usuario }) {
           <label style={styles.fieldLabel}>Competência</label>
           <input type="month" value={competencia} onChange={e => setCompetencia(e.target.value)}
             style={{ ...styles.input, maxWidth: 200 }} />
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <label style={styles.fieldLabel}><FileUp size={12} style={{ verticalAlign: -1, marginRight: 4 }} />Importar planilha (opcional)</label>
+          <FileInput label="Folha_RH_AAAA-MM.xlsx" arquivo={arquivoImportado} onSelecionar={importar} />
+          <p style={{ ...styles.helper, marginTop: 6, marginBottom: 0, fontSize: 11.5 }}>
+            Preenche os campos abaixo pra você conferir — nada é salvo até clicar em "Salvar folha".
+            Planilha gerada pelo Claude a partir do PDF "Resumo Geral" do RH.
+          </p>
+          {avisosImportacao.length > 0 && (
+            <div style={{ ...styles.erro, background: '#FFF3E0', color: C.laranjaEsc, flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+              {avisosImportacao.map((a, i) => <div key={i} style={{ display: 'flex', gap: 8 }}><AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />{a}</div>)}
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 14 }}>
