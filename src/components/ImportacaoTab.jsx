@@ -8,8 +8,19 @@ import {
   listarCentrosCusto, buscarParaExcluir, excluirDocs, listarFolha, excluirFolha
 } from '../lib/db';
 import FileInput from './FileInput';
+import AlertaImportacoesFaltando from './AlertaImportacoesFaltando';
 
 const mesAtual = () => new Date().toISOString().slice(0, 7);
+
+/* Trava de duplicidade — combinado com Pablo em 21/ago/2026 (reverte a
+   decisão de 19/ago/2026 de deixar sem trava): antes de liberar a
+   confirmação, checa se já existe alguma importação daquele tipo pra
+   aquela competência. Achou aconteceu de verdade em jul/26 (Despesas e
+   Faturamento-Serviço com múltiplos lotes registrados pro mesmo mês). */
+async function contarExistentes(colecao, filtros) {
+  const docs = await buscarParaExcluir(colecao, filtros);
+  return docs.length;
+}
 
 const CAMPOS_FOLHA_UI = [
   { id: 'totalLiquidoPagar', label: 'Total Líquido a Pagar', destaque: true },
@@ -49,6 +60,12 @@ const BlocoFaturamento = forwardRef(function BlocoFaturamento({ titulo, ajuda, t
       const resultado = parser(rows, comp);
       if (resultado.linhas.length === 0) {
         setErro('Não encontrei nenhuma linha reconhecível neste arquivo. Confira se é o relatório certo.');
+        setParse(null);
+        return;
+      }
+      const existentes = await contarExistentes('lancamentos_faturamento', { tipo, competencia: comp });
+      if (existentes > 0) {
+        setErro(`Já existe uma importação de "${titulo}" pra ${comp} (${existentes} lançamento(s)). Pra reimportar, exclua a anterior primeiro em "Excluir uma importação", logo abaixo.`);
         setParse(null);
         return;
       }
@@ -152,6 +169,12 @@ const BlocoDespesas = forwardRef(function BlocoDespesas({ usuario, competencia, 
       const resultado = parseDespesas(rows, comp);
       if (resultado.linhas.length === 0) {
         setErro('Não encontrei nenhuma linha reconhecível neste arquivo. Confira se é o relatório "Documentos C. Pagar por Vencimento".');
+        setParse(null);
+        return;
+      }
+      const existentes = await contarExistentes('lancamentos_despesa', { competencia: comp });
+      if (existentes > 0) {
+        setErro(`Já existe uma importação de Despesas pra ${comp} (${existentes} lançamento(s)). Pra reimportar, exclua a anterior primeiro em "Excluir uma importação", logo abaixo.`);
         setParse(null);
         return;
       }
@@ -265,10 +288,19 @@ const BlocoFolha = forwardRef(function BlocoFolha({ usuario, competencia, aoImpo
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState(null);
   const [erro, setErro] = useState('');
+  const [jaExiste, setJaExiste] = useState(false);
 
   const resetar = () => { setArquivo(null); setValores(FOLHA_VAZIO); setAvisos([]); setTocado(false); setMsg(null); setErro(''); };
 
-  useEffect(() => { resetar(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [competencia]);
+  useEffect(() => {
+    resetar();
+    /* Folha sobrescreve (não duplica, é um doc por mês) — então é só
+       aviso, não trava, diferente de Faturamento/Despesas. */
+    let cancelado = false;
+    contarExistentes('folha_pagamento', { competencia }).then(n => { if (!cancelado) setJaExiste(n > 0); });
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [competencia]);
 
   const importarArquivo = async (file) => {
     setArquivo(file); setErro(''); setMsg(null);
@@ -296,7 +328,7 @@ const BlocoFolha = forwardRef(function BlocoFolha({ usuario, competencia, aoImpo
       const numericos = Object.fromEntries(CAMPOS_FOLHA_UI.map(c => [c.id, parseFloat((valores[c.id] || '0').replace(',', '.')) || 0]));
       await salvarFolha(competencia, numericos, usuario);
       setMsg(`Folha de ${competencia} salva.`);
-      setArquivo(null); setAvisos([]); setTocado(false);
+      setArquivo(null); setAvisos([]); setTocado(false); setJaExiste(true);
       aoImportar();
     } catch (e) {
       setErro('Falha ao salvar no banco. Verifique a internet e tente de novo.');
@@ -316,6 +348,12 @@ const BlocoFolha = forwardRef(function BlocoFolha({ usuario, competencia, aoImpo
         O PDF "Resumo Geral" do RH não tem texto extraível — peça pro Claude ler o PDF no chat e gerar
         a planilha (Folha_RH_AAAA-MM.xlsx), ou preencha os 10 campos manualmente abaixo.
       </p>
+
+      {jaExiste && (
+        <div style={{ ...styles.erro, background: '#FFF3E0', color: C.laranjaEsc }}>
+          <AlertTriangle size={15} /> Já existe uma folha lançada pra {competencia} — salvar aqui vai sobrescrever os valores atuais.
+        </div>
+      )}
 
       <FileInput label="Folha_RH_AAAA-MM.xlsx" arquivo={arquivo} onSelecionar={importarArquivo} />
 
@@ -464,7 +502,7 @@ function BlocoExcluir({ aoExcluir }) {
 }
 
 export default function ImportacaoTab({ usuario }) {
-  const [, forceRefresh] = useState(0);
+  const [versao, forceRefresh] = useState(0);
   const refrescar = () => forceRefresh(n => n + 1);
   const [competencia, setCompetencia] = useState(mesAtual());
   const [importandoTudo, setImportandoTudo] = useState(false);
@@ -495,6 +533,8 @@ export default function ImportacaoTab({ usuario }) {
         Não é a data dentro do arquivo que decide o mês; nada é substituído, cada importação soma ao
         histórico.
       </p>
+
+      <AlertaImportacoesFaltando versao={versao} />
 
       <div style={{ ...styles.card, marginBottom: 18, display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
         <div>

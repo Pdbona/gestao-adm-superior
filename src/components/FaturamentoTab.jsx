@@ -128,7 +128,7 @@ export default function FaturamentoTab() {
     setDetalhe({
       titulo: `${tipo === 'servico' ? 'Nota de Serviço' : tipo === 'locacao' ? 'Locação (ND)' : 'Faturamento'} — ${mesLabel(competencia)}`,
       subtitulo: `Por cliente · ${linhas.length} lançamento(s)`,
-      colunas: COLUNAS_FATURAMENTO_POR_CLIENTE, linhas: agruparFaturamentoPorCliente(linhas)
+      colunas: COLUNAS_FATURAMENTO_POR_CLIENTE, linhas: agruparFaturamentoPorCliente(linhas, competencia)
     });
   };
 
@@ -136,7 +136,7 @@ export default function FaturamentoTab() {
     const linhas = lancamentos.filter(l => l.competencia === competencia && chaveDe(l) === chave);
     setDetalhe({
       titulo: `${chave} — ${mesLabel(competencia)}`, subtitulo: `Por cliente · ${linhas.length} lançamento(s)`,
-      colunas: COLUNAS_FATURAMENTO_POR_CLIENTE, linhas: agruparFaturamentoPorCliente(linhas)
+      colunas: COLUNAS_FATURAMENTO_POR_CLIENTE, linhas: agruparFaturamentoPorCliente(linhas, competencia)
     });
   };
 
