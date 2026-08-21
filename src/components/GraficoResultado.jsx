@@ -3,12 +3,11 @@ import { C, brl, mesLabel } from '../styles';
 
 /* Gráfico de destaque da aba Resultado: Faturamento x Saída (Despesa+RH)
    em barras, com Resultado sobreposto em linha — os três na mesma escala
-   de R$ (sem eixo duplo). Cores calibradas com validate_palette.js da
-   skill dataviz (evita o par verde/vermelho, que falha o teste de
-   daltonismo): azul (Faturamento) e laranja (Saída) passam CVD ΔE 21+;
-   a linha de Resultado usa o navy da marca, já diferenciado por ser
-   outra forma de marca (linha x barra), não só por cor. Combinado com
-   Pablo em 21/ago/2026. */
+   de R$ (sem eixo duplo). Paleta ajustada a pedido em 21/ago/2026: azul
+   mais forte (Faturamento), vermelho no lugar do laranja (Saída) e linha
+   de Resultado em verde com sombreamento, mais grossa — diferenciados
+   também pela forma (linha x barra), não só pela cor. */
+const AZUL_FORTE = "#1B5C8C";
 
 const VBW = 800, VBH = 340;
 const MARGEM = { topo: 26, baixo: 40, esquerda: 64, direita: 16 };
@@ -60,9 +59,9 @@ export default function GraficoResultado({ meses }) {
   return (
     <div style={{ position: 'relative' }}>
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 6, fontSize: 12, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, color: C.navy2 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: C.azul, display: 'inline-block' }} /> Faturamento</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: C.laranja, display: 'inline-block' }} /> Despesa + RH</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 14, height: 2, background: C.navy, display: 'inline-block' }} /> Resultado</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: AZUL_FORTE, display: 'inline-block' }} /> Faturamento</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: C.vermelho, display: 'inline-block' }} /> Despesa + RH</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 14, height: 3, background: C.verde, display: 'inline-block', borderRadius: 1.5 }} /> Resultado</span>
       </div>
 
       <svg viewBox={`0 0 ${VBW} ${VBH}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
@@ -84,21 +83,21 @@ export default function GraficoResultado({ meses }) {
           const xSai = cx + gap / 2;
           return (
             <g key={m.competencia}>
-              <path d={pathBarraTopoArredondado(xFat, y(m.faturamento), barW, y0, 4)} fill={C.azul} />
-              <path d={pathBarraTopoArredondado(xSai, y(saida), barW, y0, 4)} fill={C.laranja} />
+              <path d={pathBarraTopoArredondado(xFat, y(m.faturamento), barW, y0, 4)} fill={AZUL_FORTE} />
+              <path d={pathBarraTopoArredondado(xSai, y(saida), barW, y0, 4)} fill={C.vermelho} />
             </g>
           );
         })}
 
-        {/* Resultado: área leve + linha + pontos */}
-        <path d={dArea} fill={C.navy} opacity={0.08} />
-        <path d={dLinha} fill="none" stroke={C.navy} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        {/* Resultado: área sombreada + linha + pontos, em verde */}
+        <path d={dArea} fill={C.verde} opacity={0.16} />
+        <path d={dLinha} fill="none" stroke={C.verde} strokeWidth={3.5} strokeLinejoin="round" strokeLinecap="round" />
         {pontosLinha.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={5} fill={C.navy} stroke={C.branco} strokeWidth={2} />
+          <circle key={i} cx={p.x} cy={p.y} r={5} fill={C.verde} stroke={C.branco} strokeWidth={2} />
         ))}
         {/* rótulo direto só no último ponto (extremidade) — o resto fica no hover/tabela */}
         <text x={pontosLinha[pontosLinha.length - 1].x} y={pontosLinha[pontosLinha.length - 1].y - 12}
-          textAnchor="middle" fontSize={11.5} fontWeight={700} fill={C.navy} fontFamily="'Roboto Mono',monospace">
+          textAnchor="middle" fontSize={11.5} fontWeight={700} fill={C.verde} fontFamily="'Roboto Mono',monospace">
           {fmtCompacto(meses[meses.length - 1].resultado)}
         </text>
 

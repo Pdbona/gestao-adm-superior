@@ -31,21 +31,24 @@ function matrizMensal(lancamentos, chaveDe) {
 }
 
 /* Total em navy (forte) e Média em azul claro — pedido do Pablo em
-   21/ago/2026 pra chamar mais atenção pros dois números-resumo. */
+   21/ago/2026 pra chamar mais atenção pros dois números-resumo.
+   Tabela transposta em 21/ago/2026 (pedido: mês no cabeçalho, dimensão
+   — cliente/item — na coluna da esquerda) — o rodapé some a soma/média
+   por mês (coluna), não mais por cliente/item. */
 function RodapeDestaque({ matriz }) {
   const totalGeral = matriz.linhasMes.reduce((s, l) => s + l.total, 0);
-  const media = matriz.linhasMes.length ? totalGeral / matriz.linhasMes.length : 0;
+  const numColunas = matriz.colunas.length || 1;
   return (
     <tfoot>
       <tr style={{ background: C.navy }}>
         <td style={{ ...styles.tf, color: C.branco }}>Total</td>
-        {matriz.colunas.map(c => <td key={c} style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(matriz.totalPorChave[c])}</td>)}
+        {matriz.linhasMes.map(l => <td key={l.competencia} style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(l.total)}</td>)}
         <td style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(totalGeral)}</td>
       </tr>
       <tr style={{ background: '#EAF2F9' }}>
-        <td style={{ ...styles.tf, color: C.navy2 }}>Média/mês</td>
-        {matriz.colunas.map(c => <td key={c} style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl((matriz.totalPorChave[c] || 0) / matriz.linhasMes.length)}</td>)}
-        <td style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(media)}</td>
+        <td style={{ ...styles.tf, color: C.navy2 }}>Média</td>
+        {matriz.linhasMes.map(l => <td key={l.competencia} style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(l.total / numColunas)}</td>)}
+        <td style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(totalGeral / numColunas)}</td>
       </tr>
     </tfoot>
   );
@@ -56,24 +59,20 @@ function TabelaMatriz({ matriz, colunaLabel, onClique }) {
     <div className="scroll-x" style={{ overflowX: 'auto' }}>
       <table style={styles.table}>
         <thead><tr>
-          <th style={styles.th}>Mês</th>
-          {matriz.colunas.map(c => <th key={c} style={styles.th}>{c}</th>)}
+          <th style={styles.th}>{colunaLabel || 'Item'}</th>
+          {matriz.linhasMes.map(l => <th key={l.competencia} style={styles.th}>{mesLabel(l.competencia)}</th>)}
           <th style={styles.th}>Total</th>
         </tr></thead>
         <tbody>
-          {matriz.linhasMes.map((l, i) => {
-            const anterior = matriz.linhasMes[i - 1];
-            const pct = anterior ? variacaoPct(l.total, anterior.total) : null;
-            return (
-              <tr key={l.competencia}>
-                <td style={styles.td}>{mesLabel(l.competencia)}</td>
-                {matriz.colunas.map(c => l.porChave[c] ? (
-                  <td key={c} style={styles.tdValorClicavel} onClick={() => onClique(l.competencia, c)}>{brl(l.porChave[c])}</td>
-                ) : <td key={c} style={styles.tdMono}>—</td>)}
-                <td style={{ ...styles.tdMono, fontWeight: 700 }}>{brl(l.total)}<Variacao pct={pct} /></td>
-              </tr>
-            );
-          })}
+          {matriz.colunas.map(c => (
+            <tr key={c}>
+              <td style={styles.td}>{c}</td>
+              {matriz.linhasMes.map(l => l.porChave[c] ? (
+                <td key={l.competencia} style={styles.tdValorClicavel} onClick={() => onClique(l.competencia, c)}>{brl(l.porChave[c])}</td>
+              ) : <td key={l.competencia} style={styles.tdMono}>—</td>)}
+              <td style={{ ...styles.tdMono, fontWeight: 700 }}>{brl(matriz.totalPorChave[c])}</td>
+            </tr>
+          ))}
         </tbody>
         <RodapeDestaque matriz={matriz} />
       </table>
@@ -210,7 +209,7 @@ export default function FaturamentoTab() {
       {matrizClientes.colunas.length === 0 ? (
         <div style={styles.empty}>Sem faturamento importado ainda.</div>
       ) : (
-        <TabelaMatriz matriz={matrizClientes} onClique={(competencia, cliente) => abrirDetalheMatriz(competencia, cliente, chaveCliente)} />
+        <TabelaMatriz matriz={matrizClientes} colunaLabel="Cliente" onClique={(competencia, cliente) => abrirDetalheMatriz(competencia, cliente, chaveCliente)} />
       )}
 
       <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, margin: '28px 0 10px' }}>
@@ -219,7 +218,7 @@ export default function FaturamentoTab() {
       {matrizItens.colunas.length === 0 ? (
         <div style={styles.empty}>Sem faturamento importado ainda.</div>
       ) : (
-        <TabelaMatriz matriz={matrizItens} onClique={(competencia, item) => abrirDetalheMatriz(competencia, item, chaveItem)} />
+        <TabelaMatriz matriz={matrizItens} colunaLabel="Item" onClique={(competencia, item) => abrirDetalheMatriz(competencia, item, chaveItem)} />
       )}
 
       <DetalheModal detalhe={detalhe} onFechar={() => setDetalhe(null)} />

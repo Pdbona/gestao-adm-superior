@@ -31,17 +31,17 @@ export const styles = {
   btnPrimary: { display: "inline-flex", alignItems: "center", gap: 8, background: C.laranja, color: C.branco, border: "none", borderRadius: 8, padding: "12px 20px", fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: "0 2px 8px rgba(255,107,0,.25)" },
   btnGhost: { display: "inline-flex", alignItems: "center", gap: 8, background: C.branco, color: C.navy, border: `1.5px dashed ${C.prata}`, borderRadius: 8, padding: "11px 18px", fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, cursor: "pointer" },
   helper: { fontSize: 13, color: C.texto, margin: "0 0 14px", lineHeight: 1.5 },
-  table: { width: "100%", borderCollapse: "collapse", border: `1px solid ${C.prataClaro}`, borderRadius: 8, overflow: "hidden", fontSize: 12.5, minWidth: 720 },
-  th: { background: C.navy, color: C.branco, fontFamily: "'Montserrat',sans-serif", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", padding: "11px 10px", textAlign: "left", whiteSpace: "nowrap" },
-  td: { padding: "10px", borderBottom: `1px solid ${C.prataClaro}`, fontFamily: "'Roboto',sans-serif", color: C.texto, whiteSpace: "nowrap" },
-  tdMono: { padding: "10px", borderBottom: `1px solid ${C.prataClaro}`, fontFamily: "'Roboto Mono',monospace", color: C.texto, whiteSpace: "nowrap", fontSize: 12 },
+  table: { width: "100%", borderCollapse: "collapse", border: `1px solid ${C.prataClaro}`, borderRadius: 8, overflow: "hidden", fontSize: 14.5, minWidth: 720 },
+  th: { background: C.navy, color: C.branco, fontFamily: "'Montserrat',sans-serif", fontSize: 12, fontWeight: 700, textTransform: "uppercase", padding: "12px 10px", textAlign: "left", whiteSpace: "nowrap" },
+  td: { padding: "11px 10px", borderBottom: `1px solid ${C.prataClaro}`, fontFamily: "'Roboto',sans-serif", color: C.texto, whiteSpace: "nowrap" },
+  tdMono: { padding: "11px 10px", borderBottom: `1px solid ${C.prataClaro}`, fontFamily: "'Roboto Mono',monospace", color: C.texto, whiteSpace: "nowrap", fontSize: 14 },
   /* valor clicável (abre o detalhe por trás do número) — mesma base do
      tdMono, só com affordance de clique */
-  tdValorClicavel: { padding: "10px", borderBottom: `1px solid ${C.prataClaro}`, fontFamily: "'Roboto Mono',monospace", color: C.navy2, whiteSpace: "nowrap", fontSize: 12, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 3 },
+  tdValorClicavel: { padding: "11px 10px", borderBottom: `1px solid ${C.prataClaro}`, fontFamily: "'Roboto Mono',monospace", color: C.navy2, whiteSpace: "nowrap", fontSize: 14, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 3 },
   /* rodapé de tabela (linhas Total/Média) — usado com uma cor de fundo
      na <tr> (ver RodapeDestaque em FaturamentoTab) */
-  tf: { padding: "10px", fontFamily: "'Montserrat',sans-serif", fontWeight: 800, color: C.navy, whiteSpace: "nowrap" },
-  tfMono: { padding: "10px", fontFamily: "'Roboto Mono',monospace", fontWeight: 800, color: C.navy, whiteSpace: "nowrap", fontSize: 12.5 },
+  tf: { padding: "11px 10px", fontFamily: "'Montserrat',sans-serif", fontWeight: 800, color: C.navy, whiteSpace: "nowrap" },
+  tfMono: { padding: "11px 10px", fontFamily: "'Roboto Mono',monospace", fontWeight: 800, color: C.navy, whiteSpace: "nowrap", fontSize: 14.5 },
   pill: { display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, fontFamily: "'Montserrat',sans-serif", fontSize: 10, fontWeight: 700, textTransform: "uppercase", lineHeight: 1, whiteSpace: "nowrap" },
   infoChip: { display: "inline-flex", alignItems: "center", gap: 4, background: C.bgLeve, border: `1px solid ${C.prataClaro}`, borderRadius: 6, padding: "4px 8px", fontSize: 11.5, color: C.texto },
   kpiGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 14, margin: "6px 0 22px" },
