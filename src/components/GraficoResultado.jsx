@@ -18,7 +18,7 @@ import { C, brl, mesLabel } from '../styles';
 export const AZUL_FORTE = "#1B5C8C";
 
 const VBH = 340;
-const MARGEM = { topo: 34, baixo: 40, esquerda: 60, direita: 16 };
+const MARGEM = { topo: 40, baixo: 40, esquerda: 60, direita: 16 };
 const PASSO_EIXO = 50000;
 const LARGURA_MIN_MES = 78; // px por mês, no mínimo — garante espaço mesmo com muitos meses (rola em vez de espremer)
 
@@ -71,18 +71,21 @@ export default function GraficoResultado({ meses }) {
   const hover = hoverI != null ? meses[hoverI] : null;
   const hoverX = hoverI != null ? MARGEM.esquerda + bandW * hoverI + bandW / 2 : 0;
 
-  const MIN_ALTURA_ROTULO = 13;
+  const MIN_ALTURA_ROTULO = 15;
 
-  // rótulos do Resultado: um por mês, em plaquinha branca acima (ou abaixo, se não couber) do ponto
+  // rótulos do Resultado: um por mês, em plaquinha branca inclinada pra cima, deslocada pra
+  // longe da barra de Saída (onde ficam os % de Despesa/RH) pra não tapar esses números
   const ALTURA_PLACA = 16;
+  const ANGULO_PLACA = -13;
   const rotulosResultado = meses.map((m, i) => {
     const p = pontosLinha[i];
     const texto = fmtCompacto(m.resultado);
     const largura = texto.length * 6.1 + 12;
-    const acimaY = p.y - 10 - ALTURA_PLACA;
-    const placaY = acimaY >= MARGEM.topo - 2 ? acimaY : p.y + 10;
-    const placaX = Math.min(Math.max(p.x - largura / 2, MARGEM.esquerda), VBW - MARGEM.direita - largura);
-    return { texto, largura, placaX, placaY };
+    const centroX = p.x - barW * 0.95; // sai de cima da barra de Saída, fica mais sobre a de Faturamento
+    const acimaY = p.y - 20 - ALTURA_PLACA;
+    const placaY = acimaY >= MARGEM.topo - 2 ? acimaY : p.y + 14;
+    const placaX = Math.min(Math.max(centroX - largura / 2, MARGEM.esquerda), VBW - MARGEM.direita - largura);
+    return { texto, largura, placaX, placaY, cx: placaX + largura / 2, cy: placaY + ALTURA_PLACA / 2 };
   });
 
   return (
@@ -140,13 +143,13 @@ export default function GraficoResultado({ meses }) {
 
                 {m.despesa > 0 && altDespesa >= MIN_ALTURA_ROTULO && (
                   <text x={xSai + barW / 2} y={(y0 + yDespesaTop) / 2} textAnchor="middle" dominantBaseline="middle"
-                    fontSize={8.5} fontWeight={700} fill={C.branco} fontFamily="'Roboto Mono',monospace">
+                    fontSize={10} fontWeight={800} fill={C.branco} fontFamily="'Roboto Mono',monospace">
                     {despesaPct.toFixed(0)}%
                   </text>
                 )}
                 {m.rh > 0 && altRh >= MIN_ALTURA_ROTULO && (
                   <text x={xSai + barW / 2} y={(yDespesaTop + ySaidaTop) / 2} textAnchor="middle" dominantBaseline="middle"
-                    fontSize={8.5} fontWeight={700} fill={C.branco} fontFamily="'Roboto Mono',monospace">
+                    fontSize={10} fontWeight={800} fill={C.branco} fontFamily="'Roboto Mono',monospace">
                     {rhPct.toFixed(0)}%
                   </text>
                 )}
@@ -161,12 +164,12 @@ export default function GraficoResultado({ meses }) {
             <circle key={i} cx={p.x} cy={p.y} r={5.5} fill={C.verde} stroke={C.branco} strokeWidth={2} />
           ))}
 
-          {/* rótulo do Resultado em todos os meses, em plaquinha branca (senão some no grid/área) */}
+          {/* rótulo do Resultado em todos os meses, inclinado pra cima, em plaquinha branca (senão some no grid/área) */}
           {rotulosResultado.map((r, i) => (
-            <g key={`rotulo-${meses[i].competencia}`} filter="url(#sombraPlacaResultado)">
+            <g key={`rotulo-${meses[i].competencia}`} filter="url(#sombraPlacaResultado)" transform={`rotate(${ANGULO_PLACA} ${r.cx} ${r.cy})`}>
               <rect x={r.placaX} y={r.placaY} width={r.largura} height={ALTURA_PLACA} rx={4}
                 fill={C.branco} stroke={C.verde} strokeWidth={1} />
-              <text x={r.placaX + r.largura / 2} y={r.placaY + ALTURA_PLACA / 2 + 0.5} textAnchor="middle" dominantBaseline="middle"
+              <text x={r.cx} y={r.cy + 0.5} textAnchor="middle" dominantBaseline="middle"
                 fontSize={9.5} fontWeight={800} fill={C.verde} fontFamily="'Roboto Mono',monospace">
                 {r.texto}
               </text>

@@ -7,8 +7,8 @@ import { C } from '../styles';
    20/ago/2026). Leitura de direção, não de bom/ruim: subindo = azul,
    descendo = vermelho (combinado com Pablo em 21/ago/2026) — igual em
    todas as tabelas (Despesas, Faturamento, Resultado). */
-export function Variacao({ pct }) {
-  if (pct == null || Math.abs(pct) < 10) return null;
+export function Variacao({ pct, min = 10 }) {
+  if (pct == null || Math.abs(pct) < min) return null;
   const alta = pct > 0;
   return (
     <span style={{
