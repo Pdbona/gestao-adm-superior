@@ -116,14 +116,14 @@ export default function ResultadoTab() {
             boxShadow: '0 6px 24px rgba(30,58,95,.12)'
           }}>
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-              <div style={{ flex: '3 1 480px', minWidth: 320 }}>
+              <div style={{ flex: '4 1 600px', minWidth: 360 }}>
                 <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 14.5, color: C.navy, marginBottom: 4 }}>
-                  Evolução mensal — Faturamento, Saída e Resultado
+                  Evolução Mensal - Faturamento, Despesas/Custos e Resultado
                 </div>
                 <p style={{ ...styles.helper, marginBottom: 14 }}>Passe o mouse sobre um mês pra ver o detalhe. Saída = Despesa Total + RH Total.</p>
                 <GraficoResultado meses={meses} />
               </div>
-              <div style={{ flex: '1 1 260px', minWidth: 240, borderLeft: `1px solid ${C.prataClaro}`, paddingLeft: 24 }}>
+              <div style={{ flex: '1 1 200px', minWidth: 200, maxWidth: 240, borderLeft: `1px solid ${C.prataClaro}`, paddingLeft: 24 }}>
                 <GraficoMedias meses={meses} />
               </div>
             </div>
