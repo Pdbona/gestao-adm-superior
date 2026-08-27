@@ -10,10 +10,11 @@ import { agruparFaturamentoPorCliente, COLUNAS_FATURAMENTO_POR_CLIENTE } from '.
 const chaveCliente = (l) => l.clienteNome || l.clienteCodigo || '—';
 const chaveItem = (l) => l.categoriaLabel || (l.tipo === 'locacao' ? 'Locação (ND)' : 'Outros');
 
-/* mês (linha, crescente) x uma dimensão qualquer (coluna, ordenada por
-   total decrescente) — mesmo padrão do Sintético de Despesas, reusado
-   aqui pra Cliente e pra Item de Faturamento (combinado com Pablo em
-   21/ago/2026: "pra verificarmos a evolução por cliente/item"). */
+/* mês (linha, decrescente — mês mais recente primeiro, pedido de Pablo em
+   27/ago/2026) x uma dimensão qualquer (coluna, ordenada por total
+   decrescente) — mesmo padrão do Sintético de Despesas, reusado aqui pra
+   Cliente e pra Item de Faturamento (combinado com Pablo em 21/ago/2026:
+   "pra verificarmos a evolução por cliente/item"). */
 function matrizMensal(lancamentos, chaveDe) {
   const totalPorChave = {};
   lancamentos.forEach(l => { const k = chaveDe(l); totalPorChave[k] = (totalPorChave[k] || 0) + (l.valor || 0); });
@@ -26,7 +27,7 @@ function matrizMensal(lancamentos, chaveDe) {
     porMes[l.competencia].porChave[k] = (porMes[l.competencia].porChave[k] || 0) + (l.valor || 0);
     porMes[l.competencia].total += l.valor || 0;
   });
-  const linhasMes = Object.values(porMes).sort((a, b) => a.competencia.localeCompare(b.competencia));
+  const linhasMes = Object.values(porMes).sort((a, b) => b.competencia.localeCompare(a.competencia));
   return { colunas, linhasMes, totalPorChave };
 }
 
@@ -146,71 +147,66 @@ export default function FaturamentoTab() {
     <div>
       <div style={styles.secTitle}><Receipt size={19} /> Faturamento</div>
 
-      <div style={styles.kpiGrid}>
-        <div style={{ ...styles.kpiCard, borderTopColor: C.verde }}>
-          <div style={styles.kpiLabel}>Total Geral</div>
-          <div style={{ ...styles.kpiValor, color: C.verde }}>{brl(totalGeral)}</div>
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: '0 0 230px', minWidth: 210 }}>
+          <div style={{ ...styles.kpiCard, borderTopColor: C.verde }}>
+            <div style={styles.kpiLabel}>Total Geral</div>
+            <div style={{ ...styles.kpiValor, color: C.verde }}>{brl(totalGeral)}</div>
+          </div>
+          <div style={styles.kpiCard}>
+            <div style={styles.kpiLabel}>Nota de Serviço</div>
+            <div style={styles.kpiValor}>{brl(totalServico)}</div>
+          </div>
+          <div style={styles.kpiCard}>
+            <div style={styles.kpiLabel}>Locação (ND)</div>
+            <div style={styles.kpiValor}>{brl(totalLocacao)}</div>
+          </div>
         </div>
-        <div style={styles.kpiCard}>
-          <div style={styles.kpiLabel}>Nota de Serviço</div>
-          <div style={styles.kpiValor}>{brl(totalServico)}</div>
-        </div>
-        <div style={styles.kpiCard}>
-          <div style={styles.kpiLabel}>Locação (ND)</div>
-          <div style={styles.kpiValor}>{brl(totalLocacao)}</div>
-        </div>
-      </div>
 
-      <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, margin: '20px 0 10px' }}>
-        Sintético — por mês
-      </div>
-      {sintetico.length === 0 ? (
-        <div style={styles.empty}>Sem faturamento importado ainda.</div>
-      ) : (
-        <div className="scroll-x" style={{ overflowX: 'auto' }}>
-          <table style={styles.table}>
-            <thead><tr>{['Mês', 'Nota de Serviço', 'Locação (ND)', 'Total'].map(h => <th key={h} style={styles.th}>{h}</th>)}</tr></thead>
-            <tbody>
-              {sintetico.map((m, i) => {
-                const anterior = sintetico[i - 1];
-                const pct = anterior ? variacaoPct(m.total, anterior.total) : null;
-                return (
-                  <tr key={m.competencia}>
-                    <td style={styles.td}>{mesLabel(m.competencia)}</td>
-                    <td style={styles.tdValorClicavel} onClick={() => abrirDetalheSintetico(m.competencia, 'servico')}>{brl(m.servico)}</td>
-                    <td style={styles.tdValorClicavel} onClick={() => abrirDetalheSintetico(m.competencia, 'locacao')}>{brl(m.locacao)}</td>
-                    <td style={{ ...styles.tdValorClicavel, fontWeight: 700 }} onClick={() => abrirDetalheSintetico(m.competencia)}>{brl(m.total)}<Variacao pct={pct} /></td>
+        <div style={{ flex: '1 1 480px', minWidth: 340 }}>
+          <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, marginBottom: 10 }}>
+            Sintético — por mês
+          </div>
+          {sintetico.length === 0 ? (
+            <div style={styles.empty}>Sem faturamento importado ainda.</div>
+          ) : (
+            <div className="scroll-x" style={{ overflowX: 'auto' }}>
+              <table style={styles.table}>
+                <thead><tr>{['Mês', 'Nota de Serviço', 'Locação (ND)', 'Total'].map(h => <th key={h} style={styles.th}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {sintetico.map((m, i) => {
+                    const anterior = sintetico[i - 1];
+                    const pct = anterior ? variacaoPct(m.total, anterior.total) : null;
+                    return (
+                      <tr key={m.competencia}>
+                        <td style={styles.td}>{mesLabel(m.competencia)}</td>
+                        <td style={styles.tdValorClicavel} onClick={() => abrirDetalheSintetico(m.competencia, 'servico')}>{brl(m.servico)}</td>
+                        <td style={styles.tdValorClicavel} onClick={() => abrirDetalheSintetico(m.competencia, 'locacao')}>{brl(m.locacao)}</td>
+                        <td style={{ ...styles.tdValorClicavel, fontWeight: 700 }} onClick={() => abrirDetalheSintetico(m.competencia)}>{brl(m.total)}<Variacao pct={pct} min={0} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr style={{ background: C.navy }}>
+                    <td style={{ ...styles.tf, color: C.branco }}>Total do ano</td>
+                    <td style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(totalServico)}</td>
+                    <td style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(totalLocacao)}</td>
+                    <td style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(totalGeral)}</td>
                   </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr style={{ background: C.navy }}>
-                <td style={{ ...styles.tf, color: C.branco }}>Total do ano</td>
-                <td style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(totalServico)}</td>
-                <td style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(totalLocacao)}</td>
-                <td style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(totalGeral)}</td>
-              </tr>
-              <tr style={{ background: '#EAF2F9' }}>
-                <td style={{ ...styles.tf, color: C.navy2 }}>Média/mês</td>
-                <td style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(sintetico.reduce((s, m) => s + m.servico, 0) / sintetico.length)}</td>
-                <td style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(sintetico.reduce((s, m) => s + m.locacao, 0) / sintetico.length)}</td>
-                <td style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(mediaAno)}</td>
-              </tr>
-            </tfoot>
-          </table>
+                  <tr style={{ background: '#EAF2F9' }}>
+                    <td style={{ ...styles.tf, color: C.navy2 }}>Média/mês</td>
+                    <td style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(sintetico.reduce((s, m) => s + m.servico, 0) / sintetico.length)}</td>
+                    <td style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(sintetico.reduce((s, m) => s + m.locacao, 0) / sintetico.length)}</td>
+                    <td style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(mediaAno)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: C.prata, marginTop: 6 }}>Sinalizado ▲/▼ quando o Total do mês varia mais de 10% em relação ao mês anterior.</div>
         </div>
-      )}
-      <div style={{ fontSize: 11, color: C.prata, marginTop: 6 }}>Sinalizado ▲/▼ quando o Total do mês varia mais de 10% em relação ao mês anterior.</div>
-
-      <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, margin: '28px 0 10px' }}>
-        Analítico — por cliente, mês a mês
       </div>
-      {matrizClientes.colunas.length === 0 ? (
-        <div style={styles.empty}>Sem faturamento importado ainda.</div>
-      ) : (
-        <TabelaMatriz matriz={matrizClientes} colunaLabel="Cliente" onClique={(competencia, cliente) => abrirDetalheMatriz(competencia, cliente, chaveCliente)} />
-      )}
 
       <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, margin: '28px 0 10px' }}>
         Analítico — por item de faturamento, mês a mês
@@ -219,6 +215,15 @@ export default function FaturamentoTab() {
         <div style={styles.empty}>Sem faturamento importado ainda.</div>
       ) : (
         <TabelaMatriz matriz={matrizItens} colunaLabel="Item" onClique={(competencia, item) => abrirDetalheMatriz(competencia, item, chaveItem)} />
+      )}
+
+      <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, margin: '28px 0 10px' }}>
+        Analítico — por cliente, mês a mês
+      </div>
+      {matrizClientes.colunas.length === 0 ? (
+        <div style={styles.empty}>Sem faturamento importado ainda.</div>
+      ) : (
+        <TabelaMatriz matriz={matrizClientes} colunaLabel="Cliente" onClique={(competencia, cliente) => abrirDetalheMatriz(competencia, cliente, chaveCliente)} />
       )}
 
       <DetalheModal detalhe={detalhe} onFechar={() => setDetalhe(null)} />
