@@ -43,13 +43,13 @@ function RodapeDestaque({ matriz }) {
     <tfoot>
       <tr style={{ background: C.navy }}>
         <td style={{ ...styles.tf, color: C.branco }}>Total</td>
-        {matriz.linhasMes.map(l => <td key={l.competencia} style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(l.total)}</td>)}
         <td style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(totalGeral)}</td>
+        {matriz.linhasMes.map(l => <td key={l.competencia} style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(l.total)}</td>)}
       </tr>
       <tr style={{ background: '#EAF2F9' }}>
         <td style={{ ...styles.tf, color: C.navy2 }}>Média</td>
-        {matriz.linhasMes.map(l => <td key={l.competencia} style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(l.total / numColunas)}</td>)}
         <td style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(totalGeral / numColunas)}</td>
+        {matriz.linhasMes.map(l => <td key={l.competencia} style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(l.total / numColunas)}</td>)}
       </tr>
     </tfoot>
   );
@@ -61,17 +61,17 @@ function TabelaMatriz({ matriz, colunaLabel, onClique }) {
       <table style={styles.table}>
         <thead><tr>
           <th style={styles.th}>{colunaLabel || 'Item'}</th>
-          {matriz.linhasMes.map(l => <th key={l.competencia} style={styles.th}>{mesLabel(l.competencia)}</th>)}
           <th style={styles.th}>Total</th>
+          {matriz.linhasMes.map(l => <th key={l.competencia} style={styles.th}>{mesLabel(l.competencia)}</th>)}
         </tr></thead>
         <tbody>
           {matriz.colunas.map(c => (
             <tr key={c}>
               <td style={styles.td}>{c}</td>
+              <td style={{ ...styles.tdMono, fontWeight: 700 }}>{brl(matriz.totalPorChave[c])}</td>
               {matriz.linhasMes.map(l => l.porChave[c] ? (
                 <td key={l.competencia} style={styles.tdValorClicavel} onClick={() => onClique(l.competencia, c)}>{brl(l.porChave[c])}</td>
               ) : <td key={l.competencia} style={styles.tdMono}>—</td>)}
-              <td style={{ ...styles.tdMono, fontWeight: 700 }}>{brl(matriz.totalPorChave[c])}</td>
             </tr>
           ))}
         </tbody>
@@ -118,7 +118,9 @@ export default function FaturamentoTab() {
   const mediaAno = sintetico.length ? totalGeral / sintetico.length : 0;
 
   const matrizClientes = useMemo(() => matrizMensal(lancamentos, chaveCliente), [lancamentos]);
-  const matrizItens = useMemo(() => matrizMensal(lancamentos, chaveItem), [lancamentos]);
+  // Locação (ND) não é um "item de faturamento" — já tem sua própria coluna no
+  // Sintético, combinado com Pablo em 27/ago/2026 (não faz sentido repetir aqui).
+  const matrizItens = useMemo(() => matrizMensal(lancamentos.filter(l => l.tipo !== 'locacao'), chaveItem), [lancamentos]);
 
   /* sempre resume por cliente (Nota de Serviço x Locação, ordem decrescente
      de total) — lançamento cru individual é ruído demais aqui, combinado
@@ -147,23 +149,23 @@ export default function FaturamentoTab() {
     <div>
       <div style={styles.secTitle}><Receipt size={19} /> Faturamento</div>
 
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: '0 0 230px', minWidth: 210 }}>
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: '0 0 280px', minWidth: 260 }}>
           <div style={{ ...styles.kpiCard, borderTopColor: C.verde }}>
             <div style={styles.kpiLabel}>Total Geral</div>
-            <div style={{ ...styles.kpiValor, color: C.verde }}>{brl(totalGeral)}</div>
+            <div style={{ ...styles.kpiValor, color: C.verde, whiteSpace: 'nowrap' }}>{brl(totalGeral)}</div>
           </div>
           <div style={styles.kpiCard}>
             <div style={styles.kpiLabel}>Nota de Serviço</div>
-            <div style={styles.kpiValor}>{brl(totalServico)}</div>
+            <div style={{ ...styles.kpiValor, whiteSpace: 'nowrap' }}>{brl(totalServico)}</div>
           </div>
           <div style={styles.kpiCard}>
             <div style={styles.kpiLabel}>Locação (ND)</div>
-            <div style={styles.kpiValor}>{brl(totalLocacao)}</div>
+            <div style={{ ...styles.kpiValor, whiteSpace: 'nowrap' }}>{brl(totalLocacao)}</div>
           </div>
         </div>
 
-        <div style={{ flex: '1 1 480px', minWidth: 340 }}>
+        <div style={{ flex: '1 1 400px', minWidth: 300 }}>
           <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, marginBottom: 10 }}>
             Sintético — por mês
           </div>
