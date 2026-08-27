@@ -7,11 +7,7 @@ import SBS_LOGO from '../assets/Logo_SBS.png';
 /* Mesmos ids usados em SUBITENS_POR_ABA.administrativo, no Operacional —
    é o que o perfil de lá controla via urlAdministrativo(?ocultar=). Lista
    plana (pra RBAC e pro conteúdo em App.jsx); o agrupamento visual em
-   "Cadastro" é só de exibição, ver NAV_ITENS abaixo. `centros_custo` é
-   novo (saiu de dentro de Despesas em 21/ago/2026) — ainda não existe no
-   perfil administrativo do Operacional, então por enquanto ninguém
-   consegue ocultar essa aba por lá; avisar o Pablo pra sincronizar
-   quando puder. */
+   "Cadastro" é só de exibição, ver NAV_ITENS abaixo. */
 export const ABAS = [
   { id: 'resultado', label: 'Resultado', icon: LineChart },
   { id: 'faturamento', label: 'Faturamento', icon: Receipt },
@@ -24,17 +20,25 @@ export const ABAS = [
 /* Agrupamento visual da sidebar — combinado com Pablo em 21/ago/2026:
    Resultado, Faturamento e Despesas soltos; Importar Arquivos,
    Fornecedores e Centro de Custo dentro de um grupo "Cadastro" (abre/
-   fecha, some se todos os filhos estiverem ocultos pro perfil). */
+   fecha, some se todos os filhos estiverem ocultos pro perfil).
+   GRUPO_CADASTRO_FILHOS é reaproveitado logo abaixo: desde 28/ago/2026 o
+   cadastro de perfil no Operacional passou a controlar os 3 juntos com um
+   único item "Cadastro" (id "cadastro", que não é uma aba de verdade) em
+   vez de individualmente — ver SUBITENS_POR_ABA.administrativo lá. */
+export const GRUPO_CADASTRO_FILHOS = ['importacao', 'fornecedores', 'centros_custo'];
 const NAV_ITENS = [
   { id: 'resultado' },
   { id: 'faturamento' },
   { id: 'despesas' },
-  { grupo: 'cadastro', label: 'Cadastro', icon: FolderCog, filhos: ['importacao', 'fornecedores', 'centros_custo'] }
+  { grupo: 'cadastro', label: 'Cadastro', icon: FolderCog, filhos: GRUPO_CADASTRO_FILHOS }
 ];
 
 export default function Layout({ aba, setAba, usuario, sair, ocultar, children }) {
   const [menuAberto, setMenuAberto] = useState(false);
-  const abasVisiveis = ABAS.filter(a => !ocultar?.includes(a.id));
+  /* "cadastro" em ocultar não é uma aba de verdade — expande pros 3 filhos
+     do grupo, que são os ids reais em ABAS (ver comentário no NAV_ITENS). */
+  const ocultarEfetivo = ocultar?.includes('cadastro') ? [...ocultar, ...GRUPO_CADASTRO_FILHOS] : ocultar;
+  const abasVisiveis = ABAS.filter(a => !ocultarEfetivo?.includes(a.id));
   const idsVisiveis = new Set(abasVisiveis.map(a => a.id));
   const porId = Object.fromEntries(ABAS.map(a => [a.id, a]));
 

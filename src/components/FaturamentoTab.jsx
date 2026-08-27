@@ -5,6 +5,7 @@ import { listarFaturamento } from '../lib/db';
 import { Variacao } from './Variacao';
 import ErroCarregamento from './ErroCarregamento';
 import DetalheModal from './DetalheModal';
+import GraficoPizzaItens from './GraficoPizzaItens';
 import { agruparFaturamentoPorCliente, COLUNAS_FATURAMENTO_POR_CLIENTE } from '../lib/agregacoes';
 
 const chaveCliente = (l) => l.clienteNome || l.clienteCodigo || '—';
@@ -142,6 +143,10 @@ export default function FaturamentoTab() {
   // Locação (ND) não é um "item de faturamento" — já tem sua própria coluna no
   // Sintético, combinado com Pablo em 27/ago/2026 (não faz sentido repetir aqui).
   const matrizItens = useMemo(() => matrizMensal(lancamentos.filter(l => l.tipo !== 'locacao'), chaveItem), [lancamentos]);
+  // dados do gráfico de pizza — mesmo total por item que já sai na coluna "Total" da tabela abaixo
+  const dadosPizzaItens = useMemo(() =>
+    matrizItens.colunas.map(c => ({ label: c, valor: matrizItens.totalPorChave[c] })),
+  [matrizItens]);
 
   /* sempre resume por cliente (Nota de Serviço x Locação, ordem decrescente
      de total) — lançamento cru individual é ruído demais aqui, combinado
@@ -237,7 +242,14 @@ export default function FaturamentoTab() {
       {matrizItens.colunas.length === 0 ? (
         <div style={styles.empty}>Sem faturamento importado ainda.</div>
       ) : (
-        <TabelaMatriz matriz={matrizItens} colunaLabel="Item" onClique={(competencia, item) => abrirDetalheMatriz(competencia, item, chaveItem)} />
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <div style={{ flex: '2 1 480px', minWidth: 320 }}>
+            <TabelaMatriz matriz={matrizItens} colunaLabel="Item" onClique={(competencia, item) => abrirDetalheMatriz(competencia, item, chaveItem)} />
+          </div>
+          <div style={{ flex: '1 1 260px', minWidth: 240, maxWidth: 300 }}>
+            <GraficoPizzaItens dados={dadosPizzaItens} titulo="Distribuição por item — Total" />
+          </div>
+        </div>
       )}
 
       <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13.5, color: C.navy, margin: '28px 0 10px' }}>

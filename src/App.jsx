@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { C, styles } from './styles';
-import Layout, { ABAS } from './components/Layout';
+import Layout, { ABAS, GRUPO_CADASTRO_FILHOS } from './components/Layout';
 import ImportacaoTab from './components/ImportacaoTab';
 import FaturamentoTab from './components/FaturamentoTab';
 import DespesasTab from './components/DespesasTab';
@@ -67,7 +67,10 @@ function ocultarInicial() {
 export default function App() {
   const [usuario, setUsuario] = useState(usuarioInicial);
   const [ocultar] = useState(ocultarInicial);
-  const abasVisiveis = ABAS.filter(a => !ocultar.includes(a.id));
+  // "cadastro" (grupo Importação+Fornecedores+Centro de Custo, ver Layout.jsx) não é
+  // aba de verdade — expande pros ids reais antes de escolher a aba inicial.
+  const ocultarEfetivo = ocultar.includes('cadastro') ? [...ocultar, ...GRUPO_CADASTRO_FILHOS] : ocultar;
+  const abasVisiveis = ABAS.filter(a => !ocultarEfetivo.includes(a.id));
   const [aba, setAba] = useState(() => abasVisiveis[0]?.id || 'importacao');
 
   useEffect(() => {
