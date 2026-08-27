@@ -42,38 +42,59 @@ function RodapeDestaque({ matriz }) {
   return (
     <tfoot>
       <tr style={{ background: C.navy }}>
-        <td style={{ ...styles.tf, color: C.branco }}>Total</td>
-        <td style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(totalGeral)}</td>
-        {matriz.linhasMes.map(l => <td key={l.competencia} style={{ ...styles.tfMono, color: C.branco, fontWeight: 800 }}>{brl(l.total)}</td>)}
+        <td style={{ ...styles.tf, color: C.branco, textAlign: 'center' }}>Total</td>
+        <td style={{ ...styles.tfMono, color: C.branco, fontWeight: 800, textAlign: 'center' }}>{brl(totalGeral)}</td>
+        {matriz.linhasMes.map(l => <td key={l.competencia} style={{ ...styles.tfMono, color: C.branco, fontWeight: 800, textAlign: 'center' }}>{brl(l.total)}</td>)}
       </tr>
       <tr style={{ background: '#EAF2F9' }}>
-        <td style={{ ...styles.tf, color: C.navy2 }}>Média</td>
-        <td style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(totalGeral / numColunas)}</td>
-        {matriz.linhasMes.map(l => <td key={l.competencia} style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700 }}>{brl(l.total / numColunas)}</td>)}
+        <td style={{ ...styles.tf, color: C.navy2, textAlign: 'center' }}>Média</td>
+        <td style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700, textAlign: 'center' }}>{brl(totalGeral / numColunas)}</td>
+        {matriz.linhasMes.map(l => <td key={l.competencia} style={{ ...styles.tfMono, color: C.navy2, fontWeight: 700, textAlign: 'center' }}>{brl(l.total / numColunas)}</td>)}
       </tr>
     </tfoot>
   );
 }
 
+/* Selinho de % (do total daquela coluna) suspenso ao lado do valor — sem
+   virar coluna nova, pedido de Pablo em 27/ago/2026. Nowrap + margem
+   própria pra nunca sobrepor o valor ou vazar pra célula vizinha. */
+function SeloPercentual({ pct }) {
+  return (
+    <span style={{
+      display: 'inline-block', marginLeft: 7, padding: '1px 5px', borderRadius: 8,
+      background: C.bgLeve, color: C.navy2, fontSize: 9.5, fontWeight: 700,
+      position: 'relative', top: -5, whiteSpace: 'nowrap'
+    }}>
+      {pct.toFixed(0)}%
+    </span>
+  );
+}
+
 function TabelaMatriz({ matriz, colunaLabel, onClique }) {
+  const totalGeralMatriz = matriz.linhasMes.reduce((s, l) => s + l.total, 0);
   return (
     <div className="scroll-x" style={{ overflowX: 'auto' }}>
       <table style={styles.table}>
         <thead><tr>
-          <th style={styles.th}>{colunaLabel || 'Item'}</th>
-          <th style={styles.th}>Total</th>
-          {matriz.linhasMes.map(l => <th key={l.competencia} style={styles.th}>{mesLabel(l.competencia)}</th>)}
+          <th style={{ ...styles.th, textAlign: 'center' }}>{colunaLabel || 'Item'}</th>
+          <th style={{ ...styles.th, textAlign: 'center' }}>Total</th>
+          {matriz.linhasMes.map(l => <th key={l.competencia} style={{ ...styles.th, textAlign: 'center' }}>{mesLabel(l.competencia)}</th>)}
         </tr></thead>
         <tbody>
-          {matriz.colunas.map(c => (
-            <tr key={c}>
-              <td style={styles.td}>{c}</td>
-              <td style={{ ...styles.tdMono, fontWeight: 700 }}>{brl(matriz.totalPorChave[c])}</td>
-              {matriz.linhasMes.map(l => l.porChave[c] ? (
-                <td key={l.competencia} style={styles.tdValorClicavel} onClick={() => onClique(l.competencia, c)}>{brl(l.porChave[c])}</td>
-              ) : <td key={l.competencia} style={styles.tdMono}>—</td>)}
-            </tr>
-          ))}
+          {matriz.colunas.map(c => {
+            const pct = totalGeralMatriz > 0 ? (matriz.totalPorChave[c] / totalGeralMatriz) * 100 : 0;
+            return (
+              <tr key={c}>
+                <td style={{ ...styles.td, textAlign: 'center' }}>{c}</td>
+                <td style={{ ...styles.tdMono, fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                  {brl(matriz.totalPorChave[c])}<SeloPercentual pct={pct} />
+                </td>
+                {matriz.linhasMes.map(l => l.porChave[c] ? (
+                  <td key={l.competencia} style={{ ...styles.tdValorClicavel, textAlign: 'center' }} onClick={() => onClique(l.competencia, c)}>{brl(l.porChave[c])}</td>
+                ) : <td key={l.competencia} style={{ ...styles.tdMono, textAlign: 'center' }}>—</td>)}
+              </tr>
+            );
+          })}
         </tbody>
         <RodapeDestaque matriz={matriz} />
       </table>
