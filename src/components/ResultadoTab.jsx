@@ -6,6 +6,7 @@ import { Variacao } from './Variacao';
 import ErroCarregamento from './ErroCarregamento';
 import DetalheModal from './DetalheModal';
 import GraficoResultado from './GraficoResultado';
+import GraficoMedias from './GraficoMedias';
 import { agruparFaturamentoPorCliente, COLUNAS_FATURAMENTO_POR_CLIENTE, agruparDespesaPorCC, COLUNAS_DESPESA_POR_CC } from '../lib/agregacoes';
 
 /* Resultado = Faturamento Total − (Despesa Total + RH Total).
@@ -114,11 +115,18 @@ export default function ResultadoTab() {
             ...styles.card, borderTop: `4px solid ${C.navy}`, padding: '22px 24px 16px', marginBottom: 26,
             boxShadow: '0 6px 24px rgba(30,58,95,.12)'
           }}>
-            <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 14.5, color: C.navy, marginBottom: 4 }}>
-              Evolução mensal — Faturamento, Saída e Resultado
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+              <div style={{ flex: '3 1 480px', minWidth: 320 }}>
+                <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 14.5, color: C.navy, marginBottom: 4 }}>
+                  Evolução mensal — Faturamento, Saída e Resultado
+                </div>
+                <p style={{ ...styles.helper, marginBottom: 14 }}>Passe o mouse sobre um mês pra ver o detalhe. Saída = Despesa Total + RH Total.</p>
+                <GraficoResultado meses={meses} />
+              </div>
+              <div style={{ flex: '1 1 260px', minWidth: 240, borderLeft: `1px solid ${C.prataClaro}`, paddingLeft: 24 }}>
+                <GraficoMedias meses={meses} />
+              </div>
             </div>
-            <p style={{ ...styles.helper, marginBottom: 14 }}>Passe o mouse sobre um mês pra ver o detalhe. Saída = Despesa Total + RH Total.</p>
-            <GraficoResultado meses={meses} />
           </div>
 
           <div className="scroll-x" style={{ overflowX: 'auto', marginTop: 10 }}>

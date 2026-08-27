@@ -6,15 +6,21 @@ import { C, brl, mesLabel } from '../styles';
    de R$ (sem eixo duplo). Paleta ajustada a pedido em 21/ago/2026: azul
    mais forte (Faturamento), vermelho no lugar do laranja (Saída) e linha
    de Resultado em verde com sombreamento, mais grossa — diferenciados
-   também pela forma (linha x barra), não só pela cor. */
-const AZUL_FORTE = "#1B5C8C";
+   também pela forma (linha x barra), não só pela cor.
+   Ajustes a pedido de Pablo em 27/ago/2026: barra de Saída segregada em
+   Despesa (vermelho) + RH (laranja) com % de cada dentro da coluna; linha
+   de Resultado mais grossa e com sombra no rótulo do último mês; eixo de
+   valores em passos fixos de R$50 mil, com "k" no lugar de "mil" (o "R$"
+   estava sendo cortado). */
+export const AZUL_FORTE = "#1B5C8C";
 
 const VBW = 800, VBH = 340;
-const MARGEM = { topo: 26, baixo: 40, esquerda: 64, direita: 16 };
+const MARGEM = { topo: 26, baixo: 40, esquerda: 60, direita: 16 };
+const PASSO_EIXO = 50000;
 
 const fmtCompacto = (v) => {
   const abs = Math.abs(v);
-  if (abs >= 1000) return `${v < 0 ? '-' : ''}R$ ${(abs / 1000).toFixed(0)} mil`;
+  if (abs >= 1000) return `${v < 0 ? '-' : ''}R$ ${(abs / 1000).toFixed(0)}k`;
   return brl(v);
 };
 
@@ -30,8 +36,11 @@ export default function GraficoResultado({ meses }) {
   if (!meses || meses.length === 0) return null;
 
   const saidas = meses.map(m => m.despesa + m.rh);
-  const valorMax = Math.max(1, ...meses.map(m => m.faturamento), ...saidas, ...meses.map(m => m.resultado)) * 1.15;
-  const valorMin = Math.min(0, ...meses.map(m => m.resultado));
+  const rawMax = Math.max(1, ...meses.map(m => m.faturamento), ...saidas, ...meses.map(m => m.resultado));
+  const rawMin = Math.min(0, ...meses.map(m => m.resultado));
+  // eixo de valores em passos fixos de R$50 mil, com uma folga de ~8% acima do maior valor
+  const valorMax = Math.ceil((rawMax * 1.08) / PASSO_EIXO) * PASSO_EIXO;
+  const valorMin = rawMin < 0 ? Math.floor(rawMin / PASSO_EIXO) * PASSO_EIXO : 0;
   const span = valorMax - valorMin || 1;
 
   const plotW = VBW - MARGEM.esquerda - MARGEM.direita;
@@ -43,8 +52,8 @@ export default function GraficoResultado({ meses }) {
   const barW = Math.min(24, bandW * 0.3);
   const gap = 3;
 
-  const ticks = 4;
-  const linhasGrade = Array.from({ length: ticks + 1 }, (_, i) => valorMin + (span * i) / ticks);
+  const linhasGrade = [];
+  for (let v = valorMin; v <= valorMax + 1; v += PASSO_EIXO) linhasGrade.push(v);
 
   const pontosLinha = meses.map((m, i) => ({
     x: MARGEM.esquerda + bandW * i + bandW / 2,
@@ -56,16 +65,25 @@ export default function GraficoResultado({ meses }) {
   const hover = hoverI != null ? meses[hoverI] : null;
   const hoverX = hoverI != null ? MARGEM.esquerda + bandW * hoverI + bandW / 2 : 0;
 
+  const MIN_ALTURA_ROTULO = 13;
+
   return (
     <div style={{ position: 'relative' }}>
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 6, fontSize: 12, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, color: C.navy2 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: AZUL_FORTE, display: 'inline-block' }} /> Faturamento</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: C.vermelho, display: 'inline-block' }} /> Despesa + RH</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: C.vermelho, display: 'inline-block' }} /> Despesa</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: C.laranja, display: 'inline-block' }} /> RH</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 14, height: 3, background: C.verde, display: 'inline-block', borderRadius: 1.5 }} /> Resultado</span>
       </div>
 
       <svg viewBox={`0 0 ${VBW} ${VBH}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
-        {/* gradeado horizontal, recessivo */}
+        <defs>
+          <filter id="sombraRotuloResultado" x="-60%" y="-60%" width="220%" height="220%">
+            <feDropShadow dx="0" dy="1.5" stdDeviation="1.8" floodColor="#000000" floodOpacity="0.4" />
+          </filter>
+        </defs>
+
+        {/* gradeado horizontal, recessivo, em passos fixos de R$50 mil */}
         {linhasGrade.map((v, i) => (
           <g key={i}>
             <line x1={MARGEM.esquerda} x2={VBW - MARGEM.direita} y1={y(v)} y2={y(v)} stroke={C.prataClaro} strokeWidth={1} />
@@ -75,29 +93,58 @@ export default function GraficoResultado({ meses }) {
         {/* linha zero, um pouco mais forte, se houver valores negativos */}
         {valorMin < 0 && <line x1={MARGEM.esquerda} x2={VBW - MARGEM.direita} y1={y0} y2={y0} stroke={C.prata} strokeWidth={1} />}
 
-        {/* barras: Faturamento e Saída, agrupadas por mês */}
+        {/* barras: Faturamento e Saída (Despesa + RH empilhadas), agrupadas por mês */}
         {meses.map((m, i) => {
           const cx = MARGEM.esquerda + bandW * i + bandW / 2;
           const saida = m.despesa + m.rh;
           const xFat = cx - barW - gap / 2;
           const xSai = cx + gap / 2;
+          const yDespesaTop = y(m.despesa);
+          const ySaidaTop = y(saida);
+          const despesaPct = saida > 0 ? (m.despesa / saida) * 100 : 0;
+          const rhPct = saida > 0 ? (m.rh / saida) * 100 : 0;
+          const altDespesa = y0 - yDespesaTop;
+          const altRh = yDespesaTop - ySaidaTop;
+
           return (
             <g key={m.competencia}>
               <path d={pathBarraTopoArredondado(xFat, y(m.faturamento), barW, y0, 4)} fill={AZUL_FORTE} />
-              <path d={pathBarraTopoArredondado(xSai, y(saida), barW, y0, 4)} fill={C.vermelho} />
+
+              {m.rh > 0 ? (
+                <>
+                  <rect x={xSai} y={yDespesaTop} width={barW} height={Math.max(0, altDespesa)} fill={C.vermelho} />
+                  <path d={pathBarraTopoArredondado(xSai, ySaidaTop, barW, yDespesaTop, 4)} fill={C.laranja} />
+                </>
+              ) : (
+                <path d={pathBarraTopoArredondado(xSai, yDespesaTop, barW, y0, 4)} fill={C.vermelho} />
+              )}
+
+              {m.despesa > 0 && altDespesa >= MIN_ALTURA_ROTULO && (
+                <text x={xSai + barW / 2} y={(y0 + yDespesaTop) / 2} textAnchor="middle" dominantBaseline="middle"
+                  fontSize={8.5} fontWeight={700} fill={C.branco} fontFamily="'Roboto Mono',monospace">
+                  {despesaPct.toFixed(0)}%
+                </text>
+              )}
+              {m.rh > 0 && altRh >= MIN_ALTURA_ROTULO && (
+                <text x={xSai + barW / 2} y={(yDespesaTop + ySaidaTop) / 2} textAnchor="middle" dominantBaseline="middle"
+                  fontSize={8.5} fontWeight={700} fill={C.branco} fontFamily="'Roboto Mono',monospace">
+                  {rhPct.toFixed(0)}%
+                </text>
+              )}
             </g>
           );
         })}
 
-        {/* Resultado: área sombreada + linha + pontos, em verde */}
+        {/* Resultado: área sombreada + linha (mais grossa) + pontos, em verde */}
         <path d={dArea} fill={C.verde} opacity={0.16} />
-        <path d={dLinha} fill="none" stroke={C.verde} strokeWidth={3.5} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={dLinha} fill="none" stroke={C.verde} strokeWidth={5.5} strokeLinejoin="round" strokeLinecap="round" />
         {pontosLinha.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={5} fill={C.verde} stroke={C.branco} strokeWidth={2} />
+          <circle key={i} cx={p.x} cy={p.y} r={5.5} fill={C.verde} stroke={C.branco} strokeWidth={2} />
         ))}
-        {/* rótulo direto só no último ponto (extremidade) — o resto fica no hover/tabela */}
-        <text x={pontosLinha[pontosLinha.length - 1].x} y={pontosLinha[pontosLinha.length - 1].y - 12}
-          textAnchor="middle" fontSize={11.5} fontWeight={700} fill={C.verde} fontFamily="'Roboto Mono',monospace">
+        {/* rótulo direto só no último ponto (extremidade), com sombra pra se destacar do grid/área — o resto fica no hover/tabela */}
+        <text x={pontosLinha[pontosLinha.length - 1].x} y={pontosLinha[pontosLinha.length - 1].y - 13}
+          textAnchor="middle" fontSize={12.5} fontWeight={800} fill={C.verde} fontFamily="'Roboto Mono',monospace"
+          filter="url(#sombraRotuloResultado)">
           {fmtCompacto(meses[meses.length - 1].resultado)}
         </text>
 
