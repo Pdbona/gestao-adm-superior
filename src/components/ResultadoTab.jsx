@@ -115,7 +115,7 @@ export default function ResultadoTab() {
             ...styles.card, borderTop: `4px solid ${C.navy}`, padding: '22px 24px 16px', marginBottom: 26,
             boxShadow: '0 6px 24px rgba(30,58,95,.12)'
           }}>
-            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'stretch' }}>
               <div style={{ flex: '4 1 600px', minWidth: 360 }}>
                 <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 14.5, color: C.navy, marginBottom: 4 }}>
                   Evolução Mensal - Faturamento, Despesas/Custos e Resultado
@@ -123,7 +123,7 @@ export default function ResultadoTab() {
                 <p style={{ ...styles.helper, marginBottom: 14 }}>Passe o mouse sobre um mês pra ver o detalhe. Saída = Despesa Total + RH Total.</p>
                 <GraficoResultado meses={meses} />
               </div>
-              <div style={{ flex: '1 1 200px', minWidth: 200, maxWidth: 240, borderLeft: `1px solid ${C.prataClaro}`, paddingLeft: 24 }}>
+              <div style={{ flex: '1 1 200px', minWidth: 200, maxWidth: 240, borderLeft: `1px solid ${C.prataClaro}`, paddingLeft: 24, display: 'flex' }}>
                 <GraficoMedias meses={meses} />
               </div>
             </div>

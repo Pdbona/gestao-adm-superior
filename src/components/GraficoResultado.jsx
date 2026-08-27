@@ -18,7 +18,7 @@ import { C, brl, mesLabel } from '../styles';
 export const AZUL_FORTE = "#1B5C8C";
 
 const VBH = 340;
-const MARGEM = { topo: 40, baixo: 40, esquerda: 60, direita: 16 };
+const MARGEM = { topo: 52, baixo: 58, esquerda: 60, direita: 16 };
 const PASSO_EIXO = 50000;
 const LARGURA_MIN_MES = 78; // px por mês, no mínimo — garante espaço mesmo com muitos meses (rola em vez de espremer)
 
@@ -131,6 +131,11 @@ export default function GraficoResultado({ meses }) {
             return (
               <g key={m.competencia}>
                 <path d={pathBarraTopoArredondado(xFat, y(m.faturamento), barW, y0, 4)} fill={AZUL_FORTE} />
+                {/* valor do Faturamento no topo da coluna */}
+                <text x={xFat + barW / 2} y={y(m.faturamento) - 7} textAnchor="middle"
+                  fontSize={9.5} fontWeight={800} fill={AZUL_FORTE} fontFamily="'Roboto Mono',monospace">
+                  {fmtCompacto(m.faturamento)}
+                </text>
 
                 {m.rh > 0 ? (
                   <>
@@ -140,6 +145,11 @@ export default function GraficoResultado({ meses }) {
                 ) : (
                   <path d={pathBarraTopoArredondado(xSai, yDespesaTop, barW, y0, 4)} fill={C.vermelho} />
                 )}
+                {/* valor total de Despesa+RH na base da coluna */}
+                <text x={xSai + barW / 2} y={y0 + 14} textAnchor="middle"
+                  fontSize={9} fontWeight={800} fill={C.vermelho} fontFamily="'Roboto Mono',monospace">
+                  {fmtCompacto(saida)}
+                </text>
 
                 {m.despesa > 0 && altDespesa >= MIN_ALTURA_ROTULO && (
                   <text x={xSai + barW / 2} y={(y0 + yDespesaTop) / 2} textAnchor="middle" dominantBaseline="middle"
@@ -178,7 +188,7 @@ export default function GraficoResultado({ meses }) {
 
           {/* eixo X */}
           {meses.map((m, i) => (
-            <text key={m.competencia} x={MARGEM.esquerda + bandW * i + bandW / 2} y={VBH - MARGEM.baixo + 18}
+            <text key={m.competencia} x={MARGEM.esquerda + bandW * i + bandW / 2} y={VBH - MARGEM.baixo + 34}
               textAnchor="middle" fontSize={10.5} fill={C.navy2} fontFamily="'Montserrat',sans-serif" fontWeight={700}>
               {mesLabel(m.competencia)}
             </text>
